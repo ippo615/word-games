@@ -663,7 +663,7 @@ $('#scramble-message-text').on('click',function(){
 
 // This starts the game once the word list is loaded
 function onWordListLoad(data) {
-  WORD_LIST = data.replace(/["<>(){}\[\]#@&]/g,'').split('+');
+  WORD_LIST = data.replace(/["<>(){}\[\]#@&]/g,'').split(/+| |(%20)/);
   switch (ORDER) {
     case "forward":
       break;
