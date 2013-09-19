@@ -147,10 +147,12 @@
 	<div id="scramble-area"></div>
 	
 <script type="text/javascript">
+
+// ------------------------------------ [ Module: jQuery.elementFromPoint ] -
 // Enable jQuery to get elements by a point within them
 (function ($) {
-  var check = false,
-    isRelative = true;
+  var doCheck = true;
+  var isRelative = true;
 
   $.elementFromPoint = function (x, y) {
     if (!document.elementFromPoint) {
@@ -159,15 +161,15 @@
 
     var $doc = $(document);
     var $window = $(window);
-    if (!check) {
+    if ( doCheck ) {
       var scrollTop = $doc.scrollTop();
       var scrollLeft = $doc.scrollLeft();
       if (scrollTop > 0) {
         isRelative = (document.elementFromPoint(0, scrollTop + $window.height() - 1) === null);
-        check = true;
+        doCheck = false;
       } else if (scrollLeft > 0) {
         isRelative = (document.elementFromPoint(scrollLeft + $window.width() - 1, 0) === null);
-        check = true;
+        doCheck = false;
       }
     }
 
@@ -181,572 +183,677 @@
 
 })(jQuery);
 
-var N_LETTERS = 5;
-var BANK_POSITIONS = [];
-var END_POSITIONS = [];
-var LETTER_INDEX = 0;
-var LETTERS = [];
-var GUESS_LETTERS = [];
-var CORRECT_WORD = '';
-var N_TRIES = 0;
-var HINT_LEVEL = 0;
-var WORD_LIST = [];
-var WORD_INDEX = 0;
-var ORDER = 'random';
+// -------------------------------------------- [ Module: Random Numbers  ] -
+var RANDOM = (function () {
+  var Seed = Math.floor(Math.random() * 4294967296);
+  var Current = Seed;
 
-function startNewWord() {
-  if (GUESS_LETTERS.length !== LETTERS.length) {
-    return;
+  function setSeed(aSeed) {
+    Seed = aSeed;
+    Current = aSeed;
   }
-  switch (ORDER) {
-    case "forward":
-      WORD_INDEX += 1;
-      break;
-    case "backward":
-      WORD_INDEX -= 1;
-      break;
-    case "random":
-      WORD_INDEX = Math.floor(Math.random() * WORD_LIST.length);
-      break;
-    case "shuffle":
-      WORD_INDEX += 1;
-      break;
-  }
-  if (WORD_INDEX >= WORD_LIST.length) {
-    WORD_INDEX = 0;
-  }
-  if (WORD_INDEX < 0) {
-    WORD_INDEX = WORD_LIST.length - 1;
-  }
-  loadWord(WORD_LIST[WORD_INDEX]);
-}
 
-// Randomly orders the elements of arr (returns the new arrangement)
-function arraySuffle(arr) {
-  var l = arr.length,
-    i = Math.ceil(l / 2) + 1,
-    r1, r2, swap;
-  while (i--) {
-    r1 = Math.floor(l * Math.random());
-    r2 = Math.floor(l * Math.random());
-    swap = arr[r1];
-    arr[r1] = arr[r2];
-    arr[r2] = swap;
+  function getSeed() {
+    return Seed;
   }
-  return arr;
-}
 
-// Resized the UI so that it is optimized for horizontal viewports
-function resizeToWide(letters, letterStart, letterSize, bankTop, usedTop) {
-  var obj, $obj, i, l = letters.length;
-  for (i = 0; i < l; i += 1) {
-    obj = letters[i];
-    $obj = $(obj);
-    if ($obj.hasClass('bank')) {
-      $obj.css({
-        left: (letterStart + obj.startIndex * letterSize) + 'px',
-        top: (bankTop) + 'px'
-      });
+  function getCurrent() {
+    return Current;
+  }
+
+  function betweenInt(aMin, aMax) {
+    Current = (Current * 1664525 + 1013904223) % 4294967296;
+    return aMin + Math.floor((Current / 4294967296) * aMax);
+  }
+
+  function betweenFloat(aMin, aMax) {
+    Current = (Current * 1664525 + 1013904223) % 4294967296;
+    return aMin + (Current / 4294967296) * aMax;
+  }
+
+  function random() {
+    Current = ((Current * 1664525 + 1013904223) % 4294967296);
+    return Current / 4294967296;
+  }
+
+  // Randomly orders the elements of arr (returns the new arrangement)
+  function shuffle(arr) {
+    var l = arr.length,
+      i = Math.ceil(l / 2) + 1,
+      r1, r2, swap;
+    while (i--) {
+      r1 = Math.floor(l * RANDOM.random());
+      r2 = Math.floor(l * RANDOM.random());
+      swap = arr[r1];
+      arr[r1] = arr[r2];
+      arr[r2] = swap;
     }
-    if ($obj.hasClass('used')) {
-      if (obj.endIndex === -1) {
-        $obj.css({
-          left: (letterStart + i * letterSize) + 'px',
-          top: (usedTop) + 'px'
-        });
-      } else {
-        $obj.css({
-          left: (letterStart + obj.endIndex * letterSize) + 'px',
-          top: (usedTop) + 'px'
-        });
-      }
+    return arr;
+  }
+
+  return {
+    setSeed: setSeed,
+    getSeed: getSeed,
+    getCurrent: getCurrent,
+    betweenInt: betweenInt,
+    betweenFloat: betweenFloat,
+    random: random,
+    shuffle: shuffle
+  };
+})();
+
+// ----------------------------------------------- [ Module: Anagram Game ] -
+(function () {
+  // Game State
+  var N_LETTERS = 1;
+  var BANK_POSITIONS = [];
+  var END_POSITIONS = [];
+  var LETTER_INDEX = 0;
+  var LETTERS = [];
+  var GUESS_LETTERS = [];
+  var CORRECT_WORD = '';
+  var N_TRIES = 0;
+  var HINT_LEVEL = 0;
+  var WORD_LIST = [];
+  var WORD_INDEX = 0;
+  var ORDER = 'random';
+  var HINT_THRESHOLD = 2;
+
+  // Hooks for CSS classes
+  var BANK_CLASS_NAME = 'bank';
+  var USED_CLASS_NAME = 'used';
+  var LETTER_CLASS_NAME = 'letter';
+
+  // Hooks for CSS id's
+  var ID_ANAGRAM_AREA = '#scramble-area';
+  var ID_MESSAGE_AREA = '#scramble-message';
+  var ID_MESSAGE_TEXT = '#scramble-message-text';
+  var ID_BUTTON_NEW = '#btn-new';
+  var ID_BUTTON_TRIES = '#btn-tries';
+  var ID_BUTTON_EXIT = '#btn-back';
+  var ID_BUTTON_HINT = '#btn-hint';
+
+  // Dynamic style sheets
+  var ID_DYNAMIC_CSS = '#dynamic-css';
+
+  // Shows the next word in the word list
+  function startNewWord() {
+    if (GUESS_LETTERS.length !== LETTERS.length) {
+      return;
     }
-    BANK_POSITIONS.push({
-      left: (letterStart + obj.startIndex * letterSize),
-      top: (bankTop)
-    });
-    END_POSITIONS.push({
-      left: (letterStart + i * letterSize),
-      top: (usedTop)
-    });
-  }
-
-}
-
-// Resized the UI so that it is optimized for vertical viewports
-function resizeToTall(letters, letterStart, letterSize, bankLeft, usedLeft) {
-  var obj, $obj, i, l = letters.length;
-  for (i = 0; i < l; i += 1) {
-    obj = letters[i];
-    $obj = $(obj);
-    if ($obj.hasClass('bank')) {
-      $obj.css({
-        left: (bankLeft) + 'px',
-        top: (letterStart + obj.startIndex * letterSize) + 'px'
-      });
+    switch (ORDER) {
+      case "forward":
+        WORD_INDEX += 1;
+        break;
+      case "backward":
+        WORD_INDEX -= 1;
+        break;
+      case "random":
+        WORD_INDEX = Math.floor(RANDOM.random() * WORD_LIST.length);
+        break;
+      case "shuffle":
+        WORD_INDEX += 1;
+        break;
     }
-    if ($obj.hasClass('used')) {
-      if (obj.endIndex === -1) {
-        $obj.css({
-          left: (usedLeft) + 'px',
-          top: (letterStart + i * letterSize) + 'px'
-        });
-      } else {
-        $obj.css({
-          left: (usedLeft) + 'px',
-          top: (letterStart + obj.endIndex * letterSize) + 'px'
-        });
-      }
+    if (WORD_INDEX >= WORD_LIST.length) {
+      WORD_INDEX = 0;
     }
-    BANK_POSITIONS.push({
-      left: (bankLeft),
-      top: (letterStart + obj.startIndex * letterSize)
+    if (WORD_INDEX < 0) {
+      WORD_INDEX = WORD_LIST.length - 1;
+    }
+    loadWord(WORD_LIST[WORD_INDEX]);
+  }
+
+  // Shows/setups word to be unscrambled
+  function loadWord(word) {
+    BANK_POSITIONS = [];
+    END_POSITIONS = [];
+    LETTER_INDEX = 0;
+    LETTERS = [];
+    GUESS_LETTERS = [];
+    CORRECT_WORD = '';
+    N_TRIES = 0;
+    HINT_LEVEL = 0; // May not want to reset that...
+
+    word = word.toUpperCase();
+    CORRECT_WORD = word;
+    N_LETTERS = word.length;
+
+    // Shuffle the word
+    word = RANDOM.shuffle(word.split('')).join('');
+
+    $(ID_ANAGRAM_AREA).find('div').animate({
+      opacity: 0
     });
-    END_POSITIONS.push({
-      left: (usedLeft),
-      top: (letterStart + i * letterSize)
-    });
-  }
-}
 
-function uiResize() {
-  var $window = $(window);
-  var windowSizeX = $window.width();
-  var windowSizeY = $window.height();
-
-  var padding = 0.05;
-  var xEdgeMin = windowSizeX * padding;
-  var xEdgeMax = windowSizeX * (1 - padding);
-  var yEdgeMin = windowSizeY * padding;
-  var yEdgeMax = windowSizeY * (1 - padding);
-
-  var wordSizeX = xEdgeMax - xEdgeMin;
-  var wordSizeY = yEdgeMax - yEdgeMin;
-
-  var letterSizeX = wordSizeX / N_LETTERS;
-  var letterSizeY = wordSizeY / 2;
-  if (windowSizeX < windowSizeY) {
-    letterSizeX = wordSizeX / 2;
-    letterSizeY = wordSizeY / N_LETTERS;
-    $('#scramble-message').css({
-      left: xEdgeMin + 'px',
-      top: yEdgeMin + 'px',
-      fontSize: wordSizeY / 4 + 'px',
-      lineHeight: wordSizeY / 4 + 'px',
-      height: wordSizeY + 'px',
-      width: wordSizeX / 2 + 'px'
-    })[0].className = 'message-vertical';
-  } else {
-    $('#scramble-message').css({
-      left: xEdgeMin + 'px',
-      top: yEdgeMin + 'px',
-      fontSize: wordSizeY / 4 + 'px',
-      lineHeight: wordSizeY / 4 + 'px',
-      height: wordSizeY / 2 + 'px',
-      width: wordSizeX + 'px'
-    })[0].className = 'message-horizontal';
-  }
-
-  var fontSize = Math.min(letterSizeX, letterSizeY);
-
-  $("#dynamic-css").html(
-    '.letter { ' +
-    'width: ' + letterSizeX + 'px;' +
-    'height: ' + letterSizeY + 'px;' +
-    'font-size: ' + fontSize + 'px;' +
-    'line-height: ' + letterSizeY + 'px;' +
-    '}');
-
-  // Position all of the letters:
-  while (BANK_POSITIONS.length) {
-    BANK_POSITIONS.pop();
-  }
-  while (END_POSITIONS.length) {
-    END_POSITIONS.pop();
-  }
-  var $letters = $('#scramble-area').find('.letter');
-  if (windowSizeY < windowSizeX) {
-    resizeToWide($letters, xEdgeMin, letterSizeX, yEdgeMin, (yEdgeMin + yEdgeMax) / 2);
-  } else {
-    resizeToTall($letters, yEdgeMin, letterSizeY, xEdgeMin, (xEdgeMin + xEdgeMax) / 2);
-  }
-
-}
-
-// Shows/setups word to be unscrambled
-function loadWord(word) {
-  BANK_POSITIONS = [];
-  END_POSITIONS = [];
-  LETTER_INDEX = 0;
-  LETTERS = [];
-  GUESS_LETTERS = [];
-  CORRECT_WORD = '';
-  N_TRIES = 0;
-  HINT_LEVEL = 0; // May not want to reset that...
-
-  word = word.toUpperCase();
-  CORRECT_WORD = word;
-  N_LETTERS = word.length;
-
-  // Shuffle the word
-  word = arraySuffle(word.split('')).join('');
-
-  $('#scramble-area').find('div').animate({
-    opacity: 0
-  });
-
-  hideMessage(function () {
-    // Make the html for the letters
-    var $dom;
-    var $area = $("#scramble-area").html('');
-    var i, l = word.length;
-    for (i = 0; i < l; i += 1) {
-      $dom = $("<div class='letter bank'/>").html(word.charAt(i));
-      $dom[0].startIndex = i;
-      $dom[0].endIndex = -1;
-      $area.append($dom
-        .css({
+    hideMessage(function () {
+      // Make the html for the letters
+      var $dom;
+      var $area = $(ID_ANAGRAM_AREA).html('');
+      var i, l = word.length;
+      for (i = 0; i < l; i += 1) {
+        $dom = $("<div class='" + LETTER_CLASS_NAME + " " + BANK_CLASS_NAME + "'/>").html(word.charAt(i));
+        $dom[0].startIndex = i;
+        $dom[0].endIndex = -1;
+        $area.append($dom.css({
           opacity: 0
         }).animate({
           opacity: 1
-        })
-      );
-      LETTERS.push($dom[0]);
+        }));
+        LETTERS.push($dom[0]);
+      }
+      uiResize();
+    });
+  }
+
+  // Hides the message box that provides feedback to the user
+  function hideMessage(onDone) {
+    $(ID_MESSAGE_AREA).animate({
+      opacity: 0
+    }, 400, 'swing', onDone);
+  }
+
+  // Hides the message box that provides feedback to the user
+  // tries is the number of times the user has guessed
+  // hint is how much help the user wants (higher = more help)
+  // message is a message to show the user
+  function showMessage(tries, hint, message) {
+    $(ID_MESSAGE_AREA).animate({
+      opacity: 0.5
+    });
+    $(ID_BUTTON_TRIES).html(tries);
+
+    // how many letters to show in the hint
+    if (hint > 0 && tries - HINT_THRESHOLD > 0) {
+      message += '<br/>' + CORRECT_WORD.slice(0, Math.min(tries - HINT_THRESHOLD, hint));
     }
-    uiResize();
-  });
-}
 
-// Hides the message box that provides feedback to the user
-function hideMessage(onDone) {
-  $('#scramble-message').animate({
-    opacity: 0
-  }, 400, 'swing', onDone);
-}
-
-// Hides the message box that provides feedback to the user
-// tries is the number of times the user has guessed
-// hint is how much help the user wants (higher = more help)
-// message is a message to show the user
-function showMessage(tries, hint, message) {
-  $('#scramble-message').animate({
-    opacity: 0.5
-  });
-  $('#btn-tries').html(tries);
-
-  // how many letters to show in the hint
-  if (hint > 0 && tries - 1 > 0) {
-    message += '<br/>' + CORRECT_WORD.slice(0, Math.min(tries - 1, hint));
+    $(ID_MESSAGE_TEXT).html(message);
   }
 
-  $('#scramble-message-text').html(message);
-}
+  // Returns 1 if all of the letters have been placed
+  function isGuessComplete() {
+    return (GUESS_LETTERS.length === CORRECT_WORD.length);
+  }
 
-// Returns 1 if all of the letters have been placed
-function isGuessComplete(guess) {
-  return (guess.length === CORRECT_WORD.length);
-}
+  // Returns 1 if all of the placed letters match the correct word
+  function isGuessCorrect() {
+    var i, l = GUESS_LETTERS.length;
+    var isCorrect = 1;
+    for (i = 0; i < l; i += 1) {
+      if (CORRECT_WORD.charAt(i) !== GUESS_LETTERS[i].innerHTML) {
+        isCorrect = 0;
+        break;
+      }
+    }
+    return isCorrect;
+  }
 
-// Returns 1 if all of the placed letters match the correct word
-function isGuessCorrect(guess) {
-  var i, l = guess.length;
-  var isCorrect = 1;
-  for (i = 0; i < l; i += 1) {
-    if (CORRECT_WORD.charAt(i) !== guess[i].innerHTML) {
-      isCorrect = 0;
-      break;
+  // Checks if the user has guessed the correct answer (and updates UI)
+  // countIncrease is a number used to increase (or not) the
+  // record of how many times the user has tried/guessed
+  function checkGuess(countIncrease) {
+    if (!isGuessComplete()) {
+      return 0;
+    }
+    N_TRIES += countIncrease;
+    if (isGuessCorrect()) {
+      showMessage(N_TRIES, HINT_LEVEL, 'Good Job!');
+    } else {
+      showMessage(N_TRIES, HINT_LEVEL, 'Try Again!');
     }
   }
-  return isCorrect;
-}
 
-// Checks if the user has guessed the correct answer (and updates UI)
-// guess is the user's guess
-// countIncrease is a number used to increase (or not) the
-// record of how many times the user has tried/guessed
-function checkGuess(guess, countIncrease) {
-  if (!isGuessComplete(guess)) {
-    return 0;
-  }
-  N_TRIES += countIncrease;
-  if (isGuessCorrect(guess)) {
-    showMessage(N_TRIES, HINT_LEVEL, 'Good Job!');
-  } else {
-    showMessage(N_TRIES, HINT_LEVEL, 'Try Again!');
-  }
-}
+  // Adds a letter to the user's guess
+  function activateLetter(node) {
+    var $node = $(node)
+    if (!$node.hasClass(BANK_CLASS_NAME)) {
+      return;
+    }
 
-// Takes a letter (node) from the bank and moves it to the next guess position
-function activateLetter(node) {
-  var $node = $(node)
-  if (!$node.hasClass('bank')) {
-    return;
+    node.endIndex = LETTER_INDEX;
+
+    $node.removeClass(BANK_CLASS_NAME).animate({
+      left: END_POSITIONS[LETTER_INDEX].left + 'px',
+      top: END_POSITIONS[LETTER_INDEX].top + 'px'
+    }, 400, 'swing', function () {
+      $(this).addClass(USED_CLASS_NAME);
+      GUESS_LETTERS.push(this);
+      checkGuess(1);
+    });
+
+    LETTER_INDEX += 1;
   }
 
-  node.endIndex = LETTER_INDEX;
+  // Removes any letter (node) from the guess position and puts it in the bank
+  function deactivateLetter(node) {
 
-  $node.removeClass('bank').animate({
-    left: END_POSITIONS[LETTER_INDEX].left + 'px',
-    top: END_POSITIONS[LETTER_INDEX].top + 'px'
-  }, 400, 'swing', function () {
-    $(this).addClass('used');
-    GUESS_LETTERS.push(this);
-    checkGuess(GUESS_LETTERS, 1);
-  });
+    var $node = $(node)
+    if (!$node.hasClass(USED_CLASS_NAME)) {
+      return;
+    }
 
-  LETTER_INDEX += 1;
-}
+    var that = GUESS_LETTERS.pop();
 
-// Removes any letter (node) from the guess position and puts it in the bank
-function deactivateLetter(node) {
-
-  var $node = $(node)
-  if (!$node.hasClass('used')) {
-    return;
-  }
-
-  var that = GUESS_LETTERS.pop();
-
-  while (node !== that && GUESS_LETTERS.length > 0) {
-    that.endIndex = -1;
-    $(that).removeClass('used').animate({
+    while (node !== that && GUESS_LETTERS.length > 0) {
+      that.endIndex = -1;
+      $(that).removeClass(USED_CLASS_NAME).animate({
+        left: BANK_POSITIONS[that.startIndex].left + 'px',
+        top: BANK_POSITIONS[that.startIndex].top + 'px'
+      }, 400, 'swing', function () {
+        $(this).addClass(BANK_CLASS_NAME);
+      });
+      LETTER_INDEX -= 1;
+      that = GUESS_LETTERS.pop();
+    }
+    $(that).removeClass(USED_CLASS_NAME).animate({
       left: BANK_POSITIONS[that.startIndex].left + 'px',
       top: BANK_POSITIONS[that.startIndex].top + 'px'
     }, 400, 'swing', function () {
-      $(this).addClass('bank');
+      $(this).addClass(BANK_CLASS_NAME);
     });
     LETTER_INDEX -= 1;
-    that = GUESS_LETTERS.pop();
+
+    hideMessage();
   }
-  $(that).removeClass('used').animate({
-    left: BANK_POSITIONS[that.startIndex].left + 'px',
-    top: BANK_POSITIONS[that.startIndex].top + 'px'
-  }, 400, 'swing', function () {
-    $(this).addClass('bank');
-  });
-  LETTER_INDEX -= 1;
 
-  hideMessage();
-}
-
-function deactivateAllLetters() {
-  var usedLetters = $('#scramble-area').find('.used');
-  var i, l = usedLetters.length;
-  for (i = 0; i < l; i += 1) {
-    deactivateLetter(usedLetters[i]);
-  }
-}
-
-function uiHandleActivate(ev) {
-  ev.gesture.preventDefault();
-  var node = $.elementFromPoint(ev.gesture.center.pageX, ev.gesture.center.pageY);
-  activateLetter(node);
-}
-
-function uiHandleDeactivate(ev) {
-  ev.gesture.preventDefault();
-  var node = $.elementFromPoint(ev.gesture.center.pageX, ev.gesture.center.pageY);
-  deactivateLetter(node);
-}
-
-function uiKeyboardLetter(ev) {
-  // If a letter on the keyboard is pressed: activate the
-  // corresponding letter (as if the user clicked it)
-  var letter = String.fromCharCode(ev.which).toUpperCase();
-  var $letters = $('#scramble-area').find('.bank');
-  $letters.each(function (i, obj) {
-    if (obj.innerHTML === letter) {
-      activateLetter(obj);
-      return false; // break the loop
+  // Removed every letter that the user has in their guess
+  function deactivateAllLetters() {
+    var usedLetters = $(ID_ANAGRAM_AREA).find('.' + USED_CLASS_NAME);
+    var i, l = usedLetters.length;
+    for (i = 0; i < l; i += 1) {
+      deactivateLetter(usedLetters[i]);
     }
-  });
-}
-
-function uiKeyboardSpecial(ev) {
-  // If backspace is pressed
-  // Remove the last letter typed
-  if (ev.which === 8 && LETTER_INDEX > 0 && GUESS_LETTERS.length > 0) {
-    deactivateLetter(GUESS_LETTERS[LETTER_INDEX - 1]);
   }
 
-  // If delete or escape is pressed 
-  // Delete everything that was typed
-  if (ev.which === 46 || ev.which === 27) {
-    deactivateAllLetters();
+  // ------------------------------------------------------------ [ Loading ] -
+  
+  // Parses the URL for parameters and returns an array of key-value pairs
+  function GetUrlParms() {
+    // URL parameters begin after the '?' in the URL.
+    var startLocation = window.location.href.indexOf('?');
+
+    // We may not have any URL parameters.
+    if (startLocation == -1) {
+      return null;
+    }
+
+    // We do not care about the location part of the URL.
+    var parmString = window.location.href.slice(startLocation + 1);
+
+    // Some browsers put a '/' at the end of some urls
+    parmString = parmString.replace(/\/$/, '');
+
+    // Each key/value pair is separated by an '&'.
+    var varStrings = parmString.split('&');
+
+    var l = varStrings.length;
+    var variables = {};
+    for (var i = 0; i < l; i += 1) {
+      // Key/value strings have the form: key=value
+      var tmp = varStrings[i].split('=');
+      // We need to unescape the strings because they be encoded as follows:
+      // "hello world" -> hello+world
+      // or certain charactes are encoded as their ascii value: %20 %da
+      // We also convert the key to lower case so the program can always
+      // access via the lower case key.
+      variables[unescape(tmp[0]).toLowerCase()] = unescape(tmp[1]);
+    }
+    return variables;
   }
 
-  // if enter is pressed, start the next word
-  if (ev.which === 13) {
-    if (isGuessComplete(GUESS_LETTERS)) {
-      if (isGuessCorrect(GUESS_LETTERS)) {
-        startNewWord();
-      } else {
-        deactivateAllLetters();
+  // This starts the game once the word list is loaded
+  function onWordListLoad(data) {
+    WORD_LIST = data.replace(/["<>(){}\[\]#@&]/g, '').replace(/,/g, ' ').replace(/%20/g, ' ').replace(/\+/g, ' ').split(/ +/g);
+    switch (ORDER) {
+      case "forward":
+        break;
+      case "backward":
+        WORD_INDEX = WORD_LIST.length;
+        break;
+      case "random":
+        WORD_INDEX = Math.floor(RANDOM.random() * WORD_LIST.length);
+        break;
+      case "shuffle":
+        WORD_LIST = RANDOM.shuffle(WORD_LIST);
+        break;
+      default:
+        break;
+    }
+    startNewWord();
+  }
+
+  function loadOptions() {
+    var gUrlParms = GetUrlParms();
+    // URL PARAMETERS:
+    // ORDER: determines the sequence in which the words are displayed
+    // forward  - show the words in the order they appear in the list
+    // backward - show the words in the reverse order they appear in the list
+    // random   - pick a random word each time, this means you can get the 
+    //          - same word twice in a row
+    // shuffle  - shuffle the list and follow that order
+    // SEED - seed for psuedo-random numbers
+    // INDEX - starting word (number between [0-number of words])
+    // WORDS: a comma seperated list of words
+    // LIST: loads a special word list
+    // english      - default list of many english words
+    // crossword    - offical list from a crossword dictionary
+    // names_male   - list of male names
+    // names_female - list of female names
+    // misspell     - commonly misspelled words
+    // places       - list of common places
+    // constitution - words from the constitution of the USA
+    // EX1: ?words=cat,dog,fox,rabbit
+    //      Will present the words in this order: cat,dog,fox,rabbit
+    // EX2: ?words=cat,dog,fox,rabbit&order=random
+    //      Will randomly selected one of the 4 words each time
+    //      May get a repeated sequence ie: cat,cat,dog,fox,cat,rabbit,cat
+    // EX3: ?words=cat,dog,fox,rabbit&order=shuffle
+    //      Will shuffle the words to create a new list: dog,rabbit,cat,fox
+    // EX4: ?words=cat,dog,fox,rabbit&index=2&order=backward
+    //      Will start with "fox" then show dog,cat,rabbit
+
+    WORD_LIST = null;
+    ORDER = "random";
+    WORD_INDEX = -1;
+
+    // Try to load URL parameters.
+    if (gUrlParms !== null) {
+      if (gUrlParms.words) {
+        ORDER = "forward";
+      }
+      if (gUrlParms.order) {
+        ORDER = gUrlParms.order;
+      }
+      if (gUrlParms.index) {
+        // apply correction factor
+        WORD_INDEX = parseInt(gUrlParms.index) - 2;
+      }
+      if (gUrlParms.seed) {
+        RANDOM.setSeed(gUrlParms.seed);
+      }
+    }
+
+    // If we're not supplied with a word list.
+    if (gUrlParms && gUrlParms.words) {
+      // Manually start with the words provided
+      onWordListLoad(gUrlParms.words);
+    } else {
+      var list = 'english';
+      if (gUrlParms && gUrlParms["list"]) {
+        if (gUrlParms["list"] === "crossword") {
+          list = "crossword";
+        }
+        if (gUrlParms["list"] === "names_male") {
+          list = "names_male";
+        }
+        if (gUrlParms["list"] === "names_female") {
+          list = "names_female";
+        }
+        if (gUrlParms["list"] === "misspell") {
+          list = "misspell";
+        }
+        if (gUrlParms["list"] === "places") {
+          list = "places";
+        }
+        if (gUrlParms["list"] === "constitution") {
+          list = "constitution";
+        }
+      }
+
+      // Load the list of words via get request (AJAX)
+      $.get('../resources/word-lists/' + list, onWordListLoad);
+    }
+  }
+
+  // -------------------------------------------------------- [ UI Resizing ] -
+  // Resized the UI so that it is optimized for horizontal viewports
+  function resizeToWide(letters, letterStart, letterSize, bankTop, usedTop) {
+    var obj, $obj, i, l = letters.length;
+    for (i = 0; i < l; i += 1) {
+      obj = letters[i];
+      $obj = $(obj);
+      if ($obj.hasClass(BANK_CLASS_NAME)) {
+        $obj.css({
+          left: (letterStart + obj.startIndex * letterSize) + 'px',
+          top: (bankTop) + 'px'
+        });
+      }
+      if ($obj.hasClass(USED_CLASS_NAME)) {
+        if (obj.endIndex === -1) {
+          $obj.css({
+            left: (letterStart + i * letterSize) + 'px',
+            top: (usedTop) + 'px'
+          });
+        } else {
+          $obj.css({
+            left: (letterStart + obj.endIndex * letterSize) + 'px',
+            top: (usedTop) + 'px'
+          });
+        }
+      }
+      BANK_POSITIONS.push({
+        left: (letterStart + obj.startIndex * letterSize),
+        top: (bankTop)
+      });
+      END_POSITIONS.push({
+        left: (letterStart + i * letterSize),
+        top: (usedTop)
+      });
+    }
+
+  }
+
+  // Resizes the UI so that it is optimized for vertical viewports
+  function resizeToTall(letters, letterStart, letterSize, bankLeft, usedLeft) {
+    var obj, $obj, i, l = letters.length;
+    for (i = 0; i < l; i += 1) {
+      obj = letters[i];
+      $obj = $(obj);
+      if ($obj.hasClass(BANK_CLASS_NAME)) {
+        $obj.css({
+          left: (bankLeft) + 'px',
+          top: (letterStart + obj.startIndex * letterSize) + 'px'
+        });
+      }
+      if ($obj.hasClass(USED_CLASS_NAME)) {
+        if (obj.endIndex === -1) {
+          $obj.css({
+            left: (usedLeft) + 'px',
+            top: (letterStart + i * letterSize) + 'px'
+          });
+        } else {
+          $obj.css({
+            left: (usedLeft) + 'px',
+            top: (letterStart + obj.endIndex * letterSize) + 'px'
+          });
+        }
+      }
+      BANK_POSITIONS.push({
+        left: (bankLeft),
+        top: (letterStart + obj.startIndex * letterSize)
+      });
+      END_POSITIONS.push({
+        left: (usedLeft),
+        top: (letterStart + i * letterSize)
+      });
+    }
+  }
+
+  // Resizes the UI
+  function uiResize() {
+    var $window = $(window);
+    var windowSizeX = $window.width();
+    var windowSizeY = $window.height();
+
+    var padding = 0.05;
+    var xEdgeMin = windowSizeX * padding;
+    var xEdgeMax = windowSizeX * (1 - padding);
+    var yEdgeMin = windowSizeY * padding;
+    var yEdgeMax = windowSizeY * (1 - padding);
+
+    var wordSizeX = xEdgeMax - xEdgeMin;
+    var wordSizeY = yEdgeMax - yEdgeMin;
+
+    var letterSizeX = wordSizeX / N_LETTERS;
+    var letterSizeY = wordSizeY / 2;
+    if (windowSizeX < windowSizeY) {
+      letterSizeX = wordSizeX / 2;
+      letterSizeY = wordSizeY / N_LETTERS;
+      $(ID_MESSAGE_AREA).css({
+        left: xEdgeMin + 'px',
+        top: yEdgeMin + 'px',
+        fontSize: wordSizeY / 4 + 'px',
+        lineHeight: wordSizeY / 4 + 'px',
+        height: wordSizeY + 'px',
+        width: wordSizeX / 2 + 'px'
+      })[0].className = 'message-vertical';
+    } else {
+      $(ID_MESSAGE_AREA).css({
+        left: xEdgeMin + 'px',
+        top: yEdgeMin + 'px',
+        fontSize: wordSizeY / 4 + 'px',
+        lineHeight: wordSizeY / 4 + 'px',
+        height: wordSizeY / 2 + 'px',
+        width: wordSizeX + 'px'
+      })[0].className = 'message-horizontal';
+    }
+
+    var fontSize = Math.min(letterSizeX, letterSizeY);
+
+    $(ID_DYNAMIC_CSS).html(
+      '.' + LETTER_CLASS_NAME + ' { ' +
+      'width: ' + letterSizeX + 'px;' +
+      'height: ' + letterSizeY + 'px;' +
+      'font-size: ' + fontSize + 'px;' +
+      'line-height: ' + letterSizeY + 'px;' +
+      '}');
+
+    // Position all of the letters:
+    while (BANK_POSITIONS.length) {
+      BANK_POSITIONS.pop();
+    }
+    while (END_POSITIONS.length) {
+      END_POSITIONS.pop();
+    }
+    var $letters = $(ID_ANAGRAM_AREA).find('.' + LETTER_CLASS_NAME);
+    if (windowSizeY < windowSizeX) {
+      resizeToWide($letters, xEdgeMin, letterSizeX, yEdgeMin, (yEdgeMin + yEdgeMax) / 2);
+    } else {
+      resizeToTall($letters, yEdgeMin, letterSizeY, xEdgeMin, (xEdgeMin + xEdgeMax) / 2);
+    }
+
+  }
+  
+  // -------------------------------------------------- [ UI Event Bindings ] -
+  
+  // Occurs when the user wants to add a letter to their guess
+  function uiHandleActivate(ev) {
+    ev.gesture.preventDefault();
+    var node = $.elementFromPoint(ev.gesture.center.pageX, ev.gesture.center.pageY);
+    activateLetter(node);
+  }
+
+  // Occurs when the user wants to remove a letter from their guess
+  function uiHandleDeactivate(ev) {
+    ev.gesture.preventDefault();
+    var node = $.elementFromPoint(ev.gesture.center.pageX, ev.gesture.center.pageY);
+    deactivateLetter(node);
+  }
+
+  function uiKeyboardLetter(ev) {
+    // If a letter on the keyboard is pressed: activate the
+    // corresponding letter (as if the user clicked it)
+    var letter = String.fromCharCode(ev.which).toUpperCase();
+    var $letters = $(ID_ANAGRAM_AREA).find('.' + BANK_CLASS_NAME);
+    $letters.each(function (i, obj) {
+      if (obj.innerHTML === letter) {
+        activateLetter(obj);
+        return false; // break the loop
+      }
+    });
+  }
+
+  function uiKeyboardSpecial(ev) {
+    // If backspace is pressed
+    // Remove the last letter typed
+    if (ev.which === 8 && LETTER_INDEX > 0 && GUESS_LETTERS.length > 0) {
+      deactivateLetter(GUESS_LETTERS[LETTER_INDEX - 1]);
+    }
+
+    // If delete or escape is pressed 
+    // Delete everything that was typed
+    if (ev.which === 46 || ev.which === 27) {
+      deactivateAllLetters();
+    }
+
+    // if enter is pressed, start the next word
+    if (ev.which === 13) {
+      if (isGuessComplete()) {
+        if (isGuessCorrect()) {
+          startNewWord();
+        } else {
+          deactivateAllLetters();
+        }
       }
     }
   }
-}
-
-/// Parses the URL for parameters and returns an array of key-value pairs
-function GetUrlParms() {
-  // URL parameters begin after the '?' in the URL.
-  var startLocation = window.location.href.indexOf('?');
   
-  // We may not have any URL parameters.
-  if (startLocation == -1) {
-    return null;
+  // Binds all of the ui events to the correct dom elements
+  function setupUi() {
+
+    // Size the viewport optimally and enable keyboard support
+    $(window)
+      .on('resize', uiResize)
+      .on('keypress', uiKeyboardLetter)
+      .on('keydown', uiKeyboardSpecial);
+
+    // Mouse/touch events are registered on the containing area
+    // The handler uses the touch coordinates to de/activate the letter
+    // Delegation would cause the events to not be called reliably
+    $(ID_ANAGRAM_AREA)
+      .hammer()
+      .on('doubletap tap drag hold', uiHandleActivate)
+      .on('doubletap tap drag hold', uiHandleDeactivate);
+
+    // Start a new word when the user clicks new
+    $(ID_BUTTON_NEW).on('click', startNewWord);
+
+    // Instead of 'exitting' go back
+    $(ID_BUTTON_EXIT).on('click', function () {
+      if (isGuessComplete(GUESS_LETTERS)) {
+        history.go(-1);
+      }
+    });
+
+    // Increase the hint level if the user asks for more hints
+    $(ID_BUTTON_HINT).on('click', function () {
+      if (isGuessComplete()) {
+        HINT_LEVEL += 1;
+        checkGuess(0);
+      }
+    });
+
+    // When the 'message' (good job/try again) is clicked
+    // if the user got it right -> go to a new word
+    // if the user got it wrong -> reset the letters
+    $(ID_MESSAGE_TEXT).on('click', function () {
+      if (isGuessComplete()) {
+        if (isGuessCorrect()) {
+          startNewWord();
+        } else {
+          deactivateAllLetters();
+        }
+      }
+    });
   }
-  
-  // We do not care about the location part of the URL.
-  var parmString = window.location.href.slice(startLocation + 1);
-  
-  // Some browsers put a '/' at the end of some urls
-  parmString = parmString.replace(/\/$/, '');
-  
-  // Each key/value pair is separated by an '&'.
-  var varStrings = parmString.split('&');
-  
-  var l = varStrings.length;
-  var variables = {};
-  for (var i = 0; i < l; i += 1) {
-    // Key/value strings have the form: key=value
-    var tmp = varStrings[i].split('=');
-    // We need to unescape the strings because they be encoded as follows:
-    // "hello world" -> hello+world
-    // or certain charactes are encoded as their ascii value: %20 %da
-    // We also convert the key to lower case so the program can always
-    // access via the lower case key.
-    variables[unescape(tmp[0]).toLowerCase()] = unescape(tmp[1]);
-  }
-  return variables;
-}
 
+  // --------------------------------------------------------------- [ Main ] -
+  loadOptions();
+  setupUi();
 
+})();
 
-// Mouse/touch events are registered on the containing area
-// The handler uses the touch coordinates to de/activate the letter
-// Delegation would cause the events to not be called reliably
-$('#scramble-area')
-  .hammer()
-  .on('doubletap tap drag hold', uiHandleActivate)
-  .on('doubletap tap drag hold', uiHandleDeactivate);
-
-$(window)
-  .on('resize', uiResize)
-  .on('keypress', uiKeyboardLetter)
-  .on('keydown', uiKeyboardSpecial);
-
-$('#btn-new').on('click', startNewWord);
-
-$('#btn-back').on('click', function () {
-  if (isGuessComplete(GUESS_LETTERS)) {
-    history.go(-1);
-  }
-});
-
-$('#btn-hint').on('click', function () {
-  if (isGuessComplete(GUESS_LETTERS)) {
-    HINT_LEVEL += 1;
-    checkGuess(GUESS_LETTERS, 0);
-  }
-});
-
-$('#scramble-message-text').on('click',function(){
-  if (isGuessComplete(GUESS_LETTERS)) {
-    if( isGuessCorrect(GUESS_LETTERS) ){
-      startNewWord();
-    }else{
-      deactivateAllLetters();
-    }
-  }
-});
-
-// This starts the game once the word list is loaded
-function onWordListLoad(data) {
-  WORD_LIST = data.replace(/["<>(){}\[\]#@&]/g,'').replace(/%20/g,' ').replace(/\+/g,' ').split(/ +/g);
-  switch (ORDER) {
-    case "forward":
-      break;
-    case "backward":
-      WORD_INDEX = WORD_LIST.length;
-      break;
-    case "random":
-      WORD_INDEX = Math.floor(Math.random() * WORD_LIST.length);
-      break;
-    case "shuffle":
-      WORD_LIST = arraySuffle(WORD_LIST);
-      break;
-    default:
-      break;
-  }
-  startNewWord();
-}
-
-var gUrlParms = GetUrlParms();
-// URL PARAMETERS:
-// ORDER: determines the sequence in which the words are displayed
-// forward  - show the words in the order they appear in the list
-// backward - show the words in the reverse order they appear in the list
-// random   - pick a random word each time, this means you can get the 
-//          - same word twice in a row
-// shuffle  - shuffle the list and follow that order
-// WORDS: a comma seperated list of words
-// LIST: loads a special word list
-// english      - default list of many english words
-// crossword    - offical list from a crossword dictionary
-// names_male   - list of male names
-// names_female - list of female names
-// misspell     - commonly misspelled words
-// places       - list of common places
-// constitution - words from the constitution of the USA
-// EX1: ?words=cat,dog,fox,rabbit
-//      Will present the words in this order: cat,dog,fox,rabbit
-// EX2: ?words=cat,dog,fox,rabbit&order=random
-//      Will randomly selected one of the 4 words each time
-//      May get a repeated sequence ie: cat,cat,dog,fox,cat,rabbit,cat
-// EX3: ?words=cat,dog,fox,rabbit&order=shuffle
-//      Will shuffle the words to create a new list: dog,rabbit,cat,fox
-// EX4: ?words=cat,dog,fox,rabbit&index=2&order=backward
-//      Will start with "fox" then show dog,cat,rabbit
-
-WORD_LIST = null;
-ORDER = "random";
-WORD_INDEX = -1;
-
-// Try to load URL parameters.
-if (gUrlParms !== null) {
-  if (gUrlParms["words"]) {
-    ORDER = "forward";
-  }
-  if (gUrlParms["order"]) {
-    ORDER = gUrlParms["order"];
-  }
-  if (gUrlParms["index"]) {
-    // apply correction factor
-    WORD_INDEX = parseInt(gUrlParms["index"]) - 2;
-  }
-}
-
-// If we're not supplied with a word list.
-if ( gUrlParms && gUrlParms["words"]) {
-  // Manually start with the words provided
-  onWordListLoad(gUrlParms["words"]);
-} else {
-  var list = 'english';
-  if( gUrlParms && gUrlParms["list"] ){
-    if( gUrlParms["list"] === "crossword" ){ list = "crossword"; }
-    if( gUrlParms["list"] === "names_male" ){ list = "names_male"; }
-    if( gUrlParms["list"] === "names_female" ){ list = "names_female"; }
-    if( gUrlParms["list"] === "misspell" ){ list = "misspell"; }
-    if( gUrlParms["list"] === "places" ){ list = "places"; }
-    if( gUrlParms["list"] === "constitution" ){ list = "constitution"; }
-  }
-  // Load a long list of words (from Mozilla Firefox's dictionary file)
-  // I modified the words and took a bunch out.
-  // Not sure what the license requirements are. I couldn't find this
-  // dictionary mentioned in Mozilla's about:license
-  $.get('../resources/word-lists/'+list, onWordListLoad);
-}
 </script>
 
 </body>
