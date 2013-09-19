@@ -617,6 +617,7 @@ function GetUrlParms() {
     // We also convert the key to lower case so the program can always
     // access via the lower case key.
     variables[unescape(tmp[0]).toLowerCase()] = unescape(tmp[1]);
+    console.info( unescape(tmp[1]) );
   }
   return variables;
 }
@@ -663,7 +664,7 @@ $('#scramble-message-text').on('click',function(){
 
 // This starts the game once the word list is loaded
 function onWordListLoad(data) {
-  WORD_LIST = data.replace(/["<>(){}\[\]#@&]/g,'').split(/\+| |(%20)/);
+  WORD_LIST = data.replace(/["<>(){}\[\]#@&]/g,'').replace(/%20/g,' ').replace(/\+/g,' ').split(/ +/g);
   switch (ORDER) {
     case "forward":
       break;
