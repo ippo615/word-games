@@ -617,7 +617,6 @@ function GetUrlParms() {
     // We also convert the key to lower case so the program can always
     // access via the lower case key.
     variables[unescape(tmp[0]).toLowerCase()] = unescape(tmp[1]);
-    console.info( unescape(tmp[1]) );
   }
   return variables;
 }

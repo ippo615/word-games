@@ -289,14 +289,15 @@ function getUrlInfo(){
 	var urlArray = window.location.href.split( '/' );
 	return {
 		protocol: urlArray[0],
-		host: urlArray[2]
+		host: urlArray[2],
+		path: urlArray.slice(3,urlArray.length-1)
 	}
 }
 
 // Adds `text` to the base url (ie protocol//host/text)
 function appendToUrl(text){
 	var url = getUrlInfo();
-	return url.protocol + '//' + url.host + '/' + text;
+	return url.protocol + '//' + url.host + '/' + url.path.join('/') + '/' + text;
 }
 
 // Generates the links and updates the output based on user input
@@ -343,10 +344,7 @@ function makeOutput(){
 	}
 	if( dirs.charAt(dirs.length-1) === '+' ){dirs = dirs.slice(0,dirs.length-1);}
 
-	var urlArray = window.location.href.split( '/' );
-	var protocol = urlArray[0];
-	var host = urlArray[2];
-	var baseUrl = protocol + '//' + host;
+
 
 	var output = '';
 	var options = [];
@@ -358,7 +356,7 @@ function makeOutput(){
 	if( list ){ options.push('list='+list); }
 	if( seed ){ options.push('seed='+seed); }
 	if( words ){ options.push('words='+words); }
-	output += '<a href="' +baseUrl+'/anagram/?';
+	output += '<a href="' +appendToUrl('anagram/?');
 	output += options.join('&');
 	output += '">Anagrams</a>\n';
 
@@ -376,7 +374,7 @@ function makeOutput(){
 	if( seed ){ options.push('seed='+seed); }
 	if( dirs ){ options.push('dirs='+dirs); }
 	if( words ){ options.push('words='+words); }
-	output += '<a href="' +baseUrl+'/search/?';
+	output += '<a href="' +appendToUrl('search/?');
 	output += options.join('&');
 	output += '">Word Search</a>\n';
 
