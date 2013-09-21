@@ -46,6 +46,11 @@ var RANDOM = (function () {
     return arr;
   }
 
+  // Returns a random element from arr
+  function from(arr){
+    return arr[betweenInt(0,arr.length)];
+  }
+
   return {
     setSeed: setSeed,
     getSeed: getSeed,
@@ -53,6 +58,7 @@ var RANDOM = (function () {
     betweenInt: betweenInt,
     betweenFloat: betweenFloat,
     random: random,
-    shuffle: shuffle
+    shuffle: shuffle,
+    from: from
   };
 })();
