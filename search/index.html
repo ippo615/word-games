@@ -44,18 +44,29 @@
 			user-select: none;
 		}
 
-		#word-search-puzzle {position: absolute; }
+		#word-search-puzzle {position: absolute;}
 		#word-message {position: absolute;}
 		#word-list-container {
 			position:absolute; overflow: scroll; text-align: center;
 			padding: 1em;
 		}
-		#word-list {}
+		
+		canvas { position: absolute; }
 
 		.letter { padding: none; margin: none; position: absolute; text-align: center;}
+		.found {text-decoration: line-through; opacity: 0.3; }
 
-		ul { display: inline-block; margin: 0; padding: 0; list-style-type: none; }
-		li { list-style-type: none; float: left; }
+		#notification {
+			position: absolute;
+			padding: 1em;
+			text-align: center;
+			border: 4px solid #000;
+			background-color: rgba(255,255,255,0.9);
+			display: none;
+		}
+
+		#word-list { display: inline-block; margin: 0; padding: 0; list-style-type: none; }
+		.word { list-style-type: none; float: left; }
 
 	</style>
 
@@ -68,6 +79,8 @@
 
 </head>
 <body >
+	<canvas id='canvas-results'></canvas>
+	<canvas id='canvas-preview'></canvas>
 	<div id='word-search-puzzle'>
 		<div class='letter' id='letter_0_0'>A</div>
 		<div class='letter' id='letter_0_1'>A</div>
@@ -96,61 +109,84 @@
 		<div class='letter' id='letter_7_6'>A</div>
 		<div class='letter' id='letter_6_7'>A</div>
 	</div>
-	<div id='word-message'></div>
-	<div id='word-list-container'><ul id='word-list'>
-		<li>word123</li>
-		<li>word1</li>
-		<li>word23</li>
-		<li>word546</li>
-		<li>wor51d</li>
-		<li>word57</li>
-		<li>word526</li>
-		<li>word4124</li>
-		<li>word421</li>
-		<li>word42</li>
-		<li>word</li>
-		<li>word123</li>
-		<li>word1</li>
-		<li>word23</li>
-		<li>word546</li>
-		<li>wor51d</li>
-		<li>word57</li>
-		<li>word526</li>
-		<li>word4124</li>
-		<li>word421</li>
-		<li>word42</li>
-		<li>word</li>
-		</ul></div>
+	<div id='notification'></div>
+	<div id='word-list-container'><div id='word-list'>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		<div class='word'>word123</div>
+		</div></div>
 	
 <script type="text/javascript">
-
 // ----------------------------------------------- [ Module: Game ] -
-(function () {
-  // Game State
-  var N_LETTERS_X = 8;
-  var N_LETTERS_Y = 8;
+//(function () {
+// Game State
+var N_LETTERS_X = 8;
+var N_LETTERS_Y = 8;
 
-  var MAX_WORD_SIZE = Math.max(N_LETTERS_X,N_LETTERS_Y);
+var LETTER_WIDTH = 0;
+var LETTER_HEIGHT = 0;
 
-  var MIN_SIZE_RATIO = 0.68;
-  var LIST_FONT_SCALE = 0.5;
+var PUZZLE = null;
 
-  var CLASS_PUZZLE_LETTER = '.letter';
+// How much to offset the circles drawn around the letters
+var LETTER_OFFSET_PERCENT_X = 0.5;
+var LETTER_OFFSET_PERCENT_Y = 0.6;
 
-  var SELECTOR_WORD = 'li';
+var MAX_WORD_SIZE = Math.max(N_LETTERS_X, N_LETTERS_Y);
 
-  var ID_LETTER_PREFIX = '#letter_';
-  var ID_LETTER_SEP = '_';
+var MIN_SIZE_RATIO = 0.68;
+var LIST_FONT_SCALE = 0.5;
 
-  var ID_DYNAMIC_CSS = '#dynamic-css';
+var CLASS_PUZZLE_LETTER = 'letter';
+var CLASS_WORD = 'word';
+var CLASS_FOUND = 'found';
 
-  var ID_PUZZLE = '#word-search-puzzle';
-  var ID_LIST = '#word-list';
-  var ID_LIST_CONTAINER = '#word-list-container';
-  var ID_MESSAGE = '#word-message';
+var ID_CANVAS_PREVIEW = '#canvas-preview';
+var ID_CANVAS_RESULTS = '#canvas-results';
 
-  // Resizes the UI
-  function uiResize() {
+var ID_LETTER_PREFIX = 'letter_';
+var ID_LETTER_SEP = '_';
+
+var ID_DYNAMIC_CSS = '#dynamic-css';
+
+var ID_PUZZLE = '#word-search-puzzle';
+var ID_LIST = '#word-list';
+var ID_LIST_CONTAINER = '#word-list-container';
+var ID_MESSAGE = '#word-message';
+
+// Resizes the UI
+function uiResize() {
     var $window = $(window);
     var windowSizeX = $window.width();
     var windowSizeY = $window.height();
@@ -162,60 +198,90 @@
 
     // Make the puzzle the smaller of the width/height
     // but if it's squarish, make sure there is room for the word list
-    var listWidth, listHeight;
+    var listWidth, listHeight, listTop, listLeft;
+    var puzzleWidth, puzzleHeight, puzzleTop, puzzleLeft;
     var smallerSize = windowSizeX;
-    if( windowSizeX > windowSizeY ){
-      smallerSize = windowSizeY;
-      if( smallerSize > windowSizeX * MIN_SIZE_RATIO ){
-        smallerSize = windowSizeX * MIN_SIZE_RATIO;
-      }
-      $puzzle.css({
-        left: '0px',
-        width: smallerSize-2+'px',
-        height: smallerSize-2+'px',
-        top: (windowSizeY-smallerSize)/2 + 'px'
-      });
-      $listContainer.css({
-        left: smallerSize + 'px',
-        top: '0px',
-        width: (windowSizeX-smallerSize)+'px',
-        height: windowSizeY+'px'
-      });
-      listWidth = windowSizeX-smallerSize;
-      listHeight = windowSizeY;
-    }else{
-      if( smallerSize > windowSizeY * MIN_SIZE_RATIO ){
-        smallerSize = windowSizeY * MIN_SIZE_RATIO;
-      }
-      $puzzle.css({
-        left: (windowSizeX-smallerSize)/2+'px',
-        width: (smallerSize-2)+'px',
-        height: (smallerSize-2)+'px',
-        top: '0px'
-      });
-      $listContainer.css({
-        left: '0px',
-        top: smallerSize+'px',
-        width: windowSizeX+'px',
-        height: (windowSizeY-smallerSize)+'px'
-      });
-      listWidth = windowSizeX;
-      listHeight = windowSizeY-smallerSize;
+    if (windowSizeX > windowSizeY) {
+        smallerSize = windowSizeY;
+        if (smallerSize > windowSizeX * MIN_SIZE_RATIO) {
+            smallerSize = windowSizeX * MIN_SIZE_RATIO;
+        }
+        puzzleLeft = 0;
+        puzzleTop = (windowSizeY - smallerSize) / 2;
+        listTop = 0;
+        listLeft = smallerSize;
+        listWidth = windowSizeX - smallerSize;
+        listHeight = windowSizeY;
+    } else {
+        if (smallerSize > windowSizeY * MIN_SIZE_RATIO) {
+            smallerSize = windowSizeY * MIN_SIZE_RATIO;
+        }
+        puzzleLeft = (windowSizeX - smallerSize) / 2;
+        puzzleTop = 0;
+        listLeft = 0;
+        listTop = smallerSize;
+        listWidth = windowSizeX;
+        listHeight = windowSizeY - smallerSize;
     }
+    puzzleWidth = smallerSize - 2;
+    puzzleHeight = smallerSize - 2;
+    $puzzle.css({
+        left: puzzleLeft + 'px',
+        top: puzzleTop + 'px',
+        width: puzzleWidth + 'px',
+        height: puzzleHeight + 'px'
+    });
+    $listContainer.css({
+        left: listLeft + 'px',
+        top: listTop + 'px',
+        width: listWidth + 'px',
+        height: listHeight + 'px'
+    });
+
+    // Resize the canvas
+    var $canvas_preview = $(ID_CANVAS_PREVIEW);
+    var $canvas_results = $(ID_CANVAS_RESULTS);
+    $canvas_preview[0].width = puzzleWidth;
+    $canvas_preview[0].height = puzzleHeight;
+    $canvas_preview.css({
+        left: puzzleLeft + 'px',
+        top: puzzleTop + 'px'
+    });
+    $canvas_results[0].width = puzzleWidth;
+    $canvas_results[0].height = puzzleHeight;
+    $canvas_results.css({
+        left: puzzleLeft + 'px',
+        top: puzzleTop + 'px'
+    });
 
     // Size the fonts
     var puzzleFontSize = smallerSize / N_LETTERS_X;
-    if( N_LETTERS_X < N_LETTERS_Y ){
-      puzzleFontSize = smallerSize / N_LETTERS_Y;
+    if (N_LETTERS_X < N_LETTERS_Y) {
+        puzzleFontSize = smallerSize / N_LETTERS_Y;
     }
-    $puzzle.css( { fontSize: puzzleFontSize } );
+    $puzzle.css({
+        fontSize: puzzleFontSize+'px'
+    });
+
+    // Resize the notification area
+    $(ID_NOTIFY).css({
+        width: puzzleWidth/2+'px',
+        height: puzzleHeight/2+'px',
+        top: puzzleTop + puzzleHeight/4 - puzzleTop/2 + 'px',
+        left: puzzleLeft + puzzleWidth/4 - puzzleLeft/2 + 'px',
+        fontSize: puzzleFontSize/2 +'px'
+    });
 
     var dynamicCss = '';
-    dynamicCss += CLASS_PUZZLE_LETTER +' { ';
-    dynamicCss += 'font-size:'+puzzleFontSize+'px; ';
-    dynamicCss += 'width:'+puzzleFontSize+'px; ';
-    dynamicCss += 'height:'+puzzleFontSize+'px; ';
+
+    // Adjust the size of the letters
+    dynamicCss += '.' + CLASS_PUZZLE_LETTER + ' { ';
+    dynamicCss += 'font-size:' + puzzleFontSize + 'px; ';
+    dynamicCss += 'width:' + puzzleFontSize + 'px; ';
+    dynamicCss += 'height:' + puzzleFontSize + 'px; ';
     dynamicCss += '}\n';
+    LETTER_WIDTH = puzzleFontSize;
+    LETTER_HEIGHT = puzzleFontSize;
 
     // Adjust the size of the word list
     var listFontSize = puzzleFontSize * LIST_FONT_SCALE;
@@ -223,72 +289,613 @@
     var nWordsWide = listWidth / (listFontSize * MAX_WORD_SIZE);
     var nWordsTall = listHeight / (listFontSize);
     dynamicCss += ID_LIST + ' { ';
-    dynamicCss += 'font-size:'+listFontSize+'px; ';
+    dynamicCss += 'font-size:' + listFontSize + 'px; ';
     dynamicCss += '}\n';
-    dynamicCss += SELECTOR_WORD + ' { ';
-    dynamicCss += 'width: '+ listFontSize * (MAX_WORD_SIZE-1) +'px;';
+    dynamicCss += '.' + CLASS_WORD + ' { ';
+    dynamicCss += 'width: ' + listFontSize * (MAX_WORD_SIZE - 1) + 'px;';
     dynamicCss += '}\n';
 
-    $(ID_LIST).width( Math.max(1,Math.floor(listWidth/listWordWidth) ) * listWordWidth );
+    $(ID_LIST).width(Math.max(1, Math.floor(listWidth / listWordWidth)) * listWordWidth);
 
     $(ID_DYNAMIC_CSS).html(dynamicCss);
 
     // Adjust the positions of all of the puzzle letters:
-    var x,y;
-    for( x=0; x<N_LETTERS_X; x+=1 ){
-      for( y=0; y<N_LETTERS_Y; y+=1 ){
-        $( ID_LETTER_PREFIX + x + ID_LETTER_SEP + y ).css({
-          left:x*puzzleFontSize, 
-          top: y*puzzleFontSize
-        });
-      }
+    var x, y;
+    for (x = 0; x < N_LETTERS_X; x += 1) {
+        for (y = 0; y < N_LETTERS_Y; y += 1) {
+            $('#' + ID_LETTER_PREFIX + x + ID_LETTER_SEP + y).css({
+                left: x * puzzleFontSize,
+                top: y * puzzleFontSize
+            });
+        }
     }
-    
 
-  }
-  
-  // Size the viewport optimally and enable keyboard support
-  $(window).on('resize', uiResize);
+    // Redraw the circled words
+    uiDrawFoundWords(PUZZLE);
+}
 
-  // Enable scrolling of the word list
-  var START_SCROLL_X = 0;
-  var START_SCROLL_Y = 0;
-  $(ID_LIST_CONTAINER).hammer().on('touch drag',function(ev){
+var uiWordListScroll = (function ($) {
+    // Variable for storing the starting scroll location
+    var START_SCROLL_X = 0;
+    var START_SCROLL_Y = 0;
+
+    return function (ev) {
+        // Prevent the browser's default scrolling
+        ev.gesture.preventDefault();
+
+        // When the event starts, recording the starting scroll position
+        if (ev.type === 'touch') {
+            START_SCROLL_Y = $(this).clearQueue().scrollTop();
+        }
+
+        // When dragging, scroll to follow the finger
+        if (ev.type === 'drag') {
+            $(this).scrollTop(START_SCROLL_Y - ev.gesture.deltaY);
+        }
+
+        // When the event ends, use velocity to animate (NO WORK)
+        if (ev.type === 'release') {
+            $(this).animate({
+                scrollTop: START_SCROLL_Y - ev.gesture.deltaY * ev.gesture.velocityY
+            });
+        }
+    };
+})($);
+
+function uiMakePuzzle(puzzle) {
+    var htmlPuzzle = '';
+    var x, w = puzzle.width;
+    var y, h = puzzle.height;
+    for (x = 0; x < w; x += 1) {
+        for (y = 0; y < h; y += 1) {
+            htmlPuzzle += '<div class="';
+            htmlPuzzle += CLASS_PUZZLE_LETTER;
+            htmlPuzzle += '" id="';
+            htmlPuzzle += ID_LETTER_PREFIX;
+            htmlPuzzle += x;
+            htmlPuzzle += ID_LETTER_SEP;
+            htmlPuzzle += y;
+            htmlPuzzle += '">';
+            htmlPuzzle += puzzle.grid[y * puzzle.width + x].letter;
+            htmlPuzzle += '</div>';
+        }
+    }
+    $(ID_PUZZLE).html(htmlPuzzle);
+}
+
+function uiMakeWordList(puzzle) {
+    var htmlList = '';
+    var words = puzzle.words;
+    var i, l = words.length;
+    for (i = 0; i < l; i += 1) {
+        htmlList += '<div class="';
+        htmlList += CLASS_WORD;
+        htmlList += '">';
+        htmlList += words[i];
+        htmlList += '</div>';
+    }
+    $(ID_LIST).html(htmlList);
+}
+
+var START_LETTER = null;
+var END_LETTER = null;
+
+function uiTouchPuzzle(ev){
+    uiHideNotification();
+    ev.gesture.preventDefault();
+    START_LETTER = $.elementFromPoint(ev.gesture.center.pageX, ev.gesture.center.pageY);
+}
+function uiDragPuzzle(ev){
+
+    uiHideNotification();
+
+    ev.gesture.preventDefault();
+    END_LETTER = $.elementFromPoint(ev.gesture.center.pageX, ev.gesture.center.pageY);
+
+    var idStart = START_LETTER.id;
+    var xyStart = idStart.slice(ID_LETTER_PREFIX.length, idStart.length).split(ID_LETTER_SEP);
+    var xStart = parseInt(xyStart[0],10) * LETTER_WIDTH + LETTER_WIDTH * LETTER_OFFSET_PERCENT_X;
+    var yStart = parseInt(xyStart[1],10) * LETTER_HEIGHT + LETTER_HEIGHT * LETTER_OFFSET_PERCENT_Y;
+
+    var idEnd = END_LETTER.id;
+    var xyEnd = idEnd.slice(ID_LETTER_PREFIX.length, idStart.length).split(ID_LETTER_SEP);
+    var xEnd = parseInt(xyEnd[0],10) * LETTER_WIDTH + LETTER_WIDTH * LETTER_OFFSET_PERCENT_X;
+    var yEnd = parseInt(xyEnd[1],10) * LETTER_HEIGHT + LETTER_HEIGHT * LETTER_OFFSET_PERCENT_Y;
+
+    var $previewCanvas = $(ID_CANVAS_PREVIEW);
+    var ctx = $previewCanvas[0].getContext('2d');
+    ctx.clearRect(0, 0, $previewCanvas[0].width, $previewCanvas[0].height);
+    drawCircle(ctx, xStart, yStart, xEnd, yEnd, LETTER_WIDTH, '#000');
+}
+
+function uiReleasePuzzle(ev) {
+    ev.gesture.preventDefault();
+    END_LETTER = $.elementFromPoint(ev.gesture.center.pageX, ev.gesture.center.pageY);
+
+    // DO STUFF
+    var idStart = START_LETTER.id;
+    var xyStart = idStart.slice(ID_LETTER_PREFIX.length, idStart.length).split(ID_LETTER_SEP);
+    var xStart = parseInt(xyStart[0],10);
+    var yStart = parseInt(xyStart[1],10);
+    var idEnd = END_LETTER.id;
+    var xyEnd = idEnd.slice(ID_LETTER_PREFIX.length, idStart.length).split(ID_LETTER_SEP);
+    var xEnd = parseInt(xyEnd[0],10);
+    var yEnd = parseInt(xyEnd[1],10);
+    wspCheckFoundWord(PUZZLE, xStart, yStart, xEnd, yEnd);
+
+    START_LETTER = null;
+    END_LETTER = null;
+}
+
+var ID_NOTIFY = '#notification';
+function uiNotify(message) {
+    $(ID_NOTIFY).finish().html(message).fadeIn().delay(2000).fadeOut();
+}
+function uiHideNotification(){
+	$(ID_NOTIFY).clearQueue().fadeOut();
+}
+function uiKeepNotification(){
+	$(ID_NOTIFY).clearQueue().fadeIn();
+}
+$(ID_NOTIFY).hammer()
+  .on('tap drag',uiHideNotification)
+  .on('hold',uiKeepNotification);
+
+//})();
+
+function wspDirFromDeltas(dx,dy){
+	var dir = 128;
+	if( dx === 1 && dy === 0 ){ dir = 128; }
+	if( dx === 1 && dy ===-1 ){ dir = 1; }
+	if( dx === 0 && dy ===-1 ){ dir = 2; }
+	if( dx ===-1 && dy ===-1 ){ dir = 4; }
+	if( dx ===-1 && dy === 0 ){ dir = 8; }
+	if( dx ===-1 && dy === 1 ){ dir = 16; }
+	if( dx === 0 && dy === 1 ){ dir = 32; }
+	if( dx === 1 && dy === 1 ){ dir = 64; }
+	return dir;
+}
+
+function wspDeltaFromDir(dir){
+	switch(dir){
+		case 128: return {x: 1,y: 0}; 
+		case   1: return {x: 1,y:-1}; 
+		case   2: return {x: 0,y:-1}; 
+		case   4: return {x:-1,y:-1}; 
+		case   8: return {x:-1,y: 0}; 
+		case  16: return {x:-1,y: 1}; 
+		case  32: return {x: 0,y: 1}; 
+		case  64: return {x: 1,y: 1}; 
+		default: return {x:0, y:0};
+	}
+}
+
+function wspCheckLocation(word, puzzle, xStart, yStart, dir, write) {
+    var width = puzzle.width;
+    var height = puzzle.height;
+    var l = word.length;
+    var dx, dy;
+	switch(dir){
+		case 128: dx = 1; dy = 0; break; // to the right
+		case   1: dx = 1; dy =-1; break; // right & up
+		case   2: dx = 0; dy =-1; break; // up
+		case   4: dx =-1; dy =-1; break; // left & up
+		case   8: dx =-1; dy = 0; break; // left
+		case  16: dx =-1; dy = 1; break; // left & down
+		case  32: dx = 0; dy = 1; break; // down
+		case  64: dx = 1; dy = 1; break; // down & right
+	}
+
+    // Make sure the word fits within the bounds of the puzzle
+    if (xStart + l * dx > width) {
+        return null;
+    }
+    if (xStart + l * dx < 0) {
+        return null;
+    }
+    if (yStart + l * dy > height) {
+        return null;
+    }
+    if (yStart + l * dy < 0) {
+        return null;
+    }
+
+    // Check if each character can go in each spot
+    var x = xStart;
+    var y = yStart;
+    var i, spot;
+    for (i = 0; i < l; i++) {
+        spot = puzzle.grid[y * width + x];
+
+        // If the letter has been decided already and the characters
+        // do not match then the word cannot go here
+        if (spot.set !== 0 && spot.letter !== word.charAt(i)) {
+            return null;
+        }
+
+        // Write the word if told to
+        if (write === 1) {
+            // Note: spot.set|dir -> this is because multiple letters will be 
+            // placed at this spot so we want to record all directions
+            puzzle.grid[y * width + x] = {
+                x: x,
+                y: y,
+                set: (spot.set | dir),
+                letter: word.charAt(i)
+            };
+        }
+        x += dx;
+        y += dy;
+    }
+    return {
+        word: word,
+        x: xStart,
+        y: yStart,
+        dir: dir
+    };
+}
+
+function wspPuzzleAddWord(word, puzzle, allowedDirections) {
+    // Loop throught every possible place that the word may go
+    // Generate a list of all of the valid spots and directions
+    var dirs = [128, 1, 2, 4, 8, 16, 32, 64];
+    var locations = [];
+    var width = puzzle.width;
+    var height = puzzle.height;
+    var i, j, k, score = 0,
+        placed;
+    for (i = 0; i < width; i += 1) {
+        for (j = 0; j < height; j += 1) {
+            for (k = 0; k < 8; k++) {
+                if ((allowedDirections & dirs[k]) === dirs[k]) {
+                    placed = wspCheckLocation(word, puzzle, i, j, dirs[k], 0);
+                    if (placed !== null) {
+                        score += 1;
+                        locations[locations.length] = {
+                            x: i,
+                            y: j,
+                            D: dirs[k]
+                        };
+                    }
+                }
+            }
+        }
+    }
+    //console.info(word+' has '+locations.length+' possible positions');
+
+    // if we haven't found a spot for the word exit
+    if (locations.length === 0) {
+        return null;
+    }
+
+    // locations has all of the possible locations that the word can fit
+    // pick a random location & put the word there
+    var place = Math.round(RANDOM.random() * (locations.length - 1));
+    //console.info("Using the "+place+"th location");
+
+    // write the word to the spot
+    var loc = locations[place];
+    return wspCheckLocation(word, puzzle, loc.x, loc.y, loc.D, 1);
+}
+
+/// Creates and returns a new puzzle object.
+function wspCreatePuzzle(arrayOfWords, width, height, allowedDirections, maxWords) {
+
+    var PUZZLE = {
+        grid: [],
+        words: [],
+        answers: [],
+        finds: [],
+        width: width,
+        height: height
+    };
+    var i, j;
+
+    // Initialize the puzzle array to blank values.
+    for (i = 0; i < height; i += 1) {
+        for (j = 0; j < width; j += 1) {
+            PUZZLE.grid[i * width + j] = {
+                x: j,
+                y: i,
+                set: 0,
+                letter: '-'
+            };
+        }
+    }
+
+    // Add words to puzzle.
+    var wordsAdded = 0;
+    var wordCnt = arrayOfWords.length;
+    var answer;
+    for (i = 0; i < wordCnt; i++) {
+        // If we add a word to the puzzle
+        answer = wspPuzzleAddWord(arrayOfWords[i], PUZZLE, allowedDirections);
+        if (answer !== null) {
+            //console.info(answer);
+
+            // Remember the word that it added.
+            PUZZLE.words[PUZZLE.words.length] = arrayOfWords[i];
+            PUZZLE.answers[PUZZLE.answers.length] = answer;
+
+            // Make sure we don't add too many words.
+            wordsAdded += 1;
+            if (wordsAdded >= maxWords) {
+                i = wordCnt;
+            }
+        }
+    }
+
+    // Add random letters to the blank spots in the puzzle
     /*
-    var $this = $(this);
-    var currentPosition = $this.position();
-    var x = currentPosition.left;
-    var y = currentPosition.top;
-
-    console.info(ev.gesture);
-
-    ev.gesture.preventDefault();
-
-    $this.css({
-      top: y+ ev.gesture.deltaY,
-      left: x+ ev.gesture.deltaX
-    });
+    var letters = arrayOfWords.join('');
+    var c, l = letters.length;
+    for (i = 0; i < height; i += 1) {
+        for (j = 0; j < width; j += 1) {
+            c = PUZZLE.grid[i * width + j];
+            if (!c.set) {
+                c.letter = letters.charAt(Math.floor(l * RANDOM.random()));
+            }
+            // = {x:j, y:i, set:0, letter: '-'};
+        }
+    }
     */
-    ev.gesture.preventDefault();
-    if( ev.type === 'touch' ){
-      START_SCROLL_Y = $(this).clearQueue().scrollTop();
+
+    // Return the puzzle object.
+    return PUZZLE;
+}
+
+function wspAddFoundWord(puzzle,word){
+	// only add words that have not be found previously
+	var finds = puzzle.finds;
+	var i,find,l = finds.length;
+	for( i=0; i<l; i+=1 ){
+		find = finds[i];
+		if( find.x === word.x
+		&&  find.y === word.y
+		&&  find.dir === word.dir
+		&&  find.word === word.word ){
+			return 1;
+		}
+	}
+
+	puzzle.finds.push(word);
+	return 0;
+}
+
+function wspCheckFoundWord(puzzle, xStart, yStart, xEnd, yEnd) {
+
+    // compute delta x and delta y
+    var dx = xEnd - xStart;
+    var dy = yEnd - yStart;
+
+    // what are the signs? and direction
+    var dxSign = (dx === 0) ? 0 : (dx < 0) ? -1 : 1;
+    var dySign = (dy === 0) ? 0 : (dy < 0) ? -1 : 1;
+    var dir = wspDirFromDeltas(dxSign, dySign);
+
+    // if we haven't moved
+    if (dx === 0 && dy === 0) {
+        uiNotify("Don't just click one letter. Press, drag, release.");
+        return 0;
     }
-    if( ev.type === 'drag' ){
-      $(this).scrollTop( START_SCROLL_Y - ev.gesture.deltaY );
+
+    // if we're going diagonally
+    if (dx !== 0 && dy !== 0) {
+        // ensure the slope is 45*
+        if (Math.abs(dx) !== Math.abs(dy)) {
+            uiNotify("Diagonal lines must be 45&deg;. Please try again.");
+            return 0;
+        }
     }
-    if( ev.type === 'release' ){
-      $(this).animate({
-        scrollTop: START_SCROLL_Y - ev.gesture.deltaY*ev.gesture.velocityY
-      });
+
+    // Get the word
+    var w = puzzle.width;
+    var h = puzzle.height;
+    var x = xStart - dxSign;
+    var y = yStart - dySign;
+    var word = '';
+    while (x !== xEnd || y !== yEnd) {
+        x += dxSign;
+        y += dySign;
+        word += puzzle.grid[y * w + x].letter;
     }
-    
-    //console.info('drag');
-    // $(this).parent().scrollTop( $(this).parent().scrollTop()-ev.gesture.velocityY*ev.gesture.deltaY );
-    //$(this).parent().clearQueue().animate({
-    //  scrollTop: -ev.gesture.deltaY
-    //});
-  });
-})();
+
+    // See if what the user highlighted is an answer
+    var answers = puzzle.answers;
+    var i, answer, l = answers.length;
+    var isFound = 0;
+    for (i = 0; i < l; i += 1) {
+        answer = answers[i];
+        if (answer.word === word) {
+            isFound = 1;
+            break;
+        }
+    }
+
+    var wasFound;
+    if (isFound) {
+        wasFound = wspAddFoundWord(puzzle,{
+            word:word,
+            x: xStart,
+            y: yStart,
+            dir: dir
+        });
+        if( wasFound ){
+            uiNotify('Awesome! You found "' + word + '"... Again.');
+        }else{
+            uiNotify('Awesome! You found "' + word + '"');
+        }
+    } else {
+        uiNotify('"' + word + '" is not on the word list.');
+    }
+
+    uiDrawFoundWords(puzzle);
+    uiCrossOutWords(puzzle);
+
+    /*
+	//text-decoration: line-through
+	//collect the letters from the table
+	var x = xStart;
+	var y = yStart;
+	var selectedWord = "";
+	var mx=0;
+	if(dx>0){mx= 1;}else
+	if(dx<0){mx=-1;}
+	var my=0;
+	if(dy>0){my= 1;}else
+	if(dy<0){my=-1;}
+	while(x != xEnd || y != yEnd){
+		selectedWord += document.getElementById(wsTableUp+"_"+x+"_"+y).innerHTML;
+		x += mx;
+		y += my;
+	}
+	selectedWord += document.getElementById(wsTableUp+"_"+x+"_"+y).innerHTML;
+	//console.info("You selected: "+selectedWord);
+	//check to see if the word is in the lst of words
+	var listDOM = document.getElementById(wsTableUp+"_LIST");
+	var tds = listDOM.getElementsByTagName("div");
+	var i=tds.length;
+	while(i--){
+		if(tds[i].innerHTML == selectedWord){
+			tds[i].className = "WS-FOUND";
+			//console.info("You found it");
+			//style the found cells
+			var dir = "NN";
+			if(mx== 0 && my== 1){dir = "SS";}else
+			if(mx== 0 && my==-1){dir = "NN";}else
+			if(mx== 1 && my== 0){dir = "EE";}else
+			if(mx==-1 && my== 0){dir = "WW";}else
+			if(mx== 1 && my== 1){dir = "SE";}else
+			if(mx== 1 && my==-1){dir = "NE";}else
+			if(mx==-1 && my== 1){dir = "SW";}else
+			if(mx==-1 && my==-1){dir = "NW";}
+			x = xStart;
+			y = yStart;
+			document.getElementById(wsTableUp+"_"+x+"_"+y).className += " "+dir+"_STR";
+			x += mx; y += my;
+			while(x != xEnd || y != yEnd){
+				document.getElementById(wsTableUp+"_"+x+"_"+y).className += " "+dir+"_MID";
+				x += mx;
+				y += my;
+			}
+			document.getElementById(wsTableUp+"_"+x+"_"+y).className += " "+dir+"_END";
+			//draw a circle or line on the canvas
+			var c2D = document.getElementById(wsTableUp+"_CANVAS").getContext("2d");
+			var cellW = parseInt(document.getElementById("JS-CELL-WIDTH").offsetWidth);
+			var drawXS = (cellW/2) + (xStart * cellW);
+			var drawYS = (cellW/2) + (yStart * cellW);
+			var drawXE = (cellW/2) + (xEnd * cellW);
+			var drawYE = (cellW/2) + (yEnd * cellW);
+			WS_CircleWord(c2D,drawXS,drawYS,drawXE,drawYE,cellW,"#999999");
+			document.getElementById(wsTableUp+"_MSG").innerHTML = "You Found: '"+selectedWord+"'";
+			if(WS_HasFoundAll(wsTableUp)==1){
+				document.getElementById(wsTableUp+"_MSG").innerHTML = "Congratulations! You found everything.";
+			}
+			return 1;
+		}
+	}
+	//we didn't find it
+	document.getElementById(wsTableUp+"_MSG").innerHTML = "You Found: '"+selectedWord+"' but it is not in the word list...";
+	return 0;
+*/
+}
+
+PUZZLE = wspCreatePuzzle("hello are are are how are you doing today".split(' '), 8, 8, 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128, 10);
+uiMakePuzzle(PUZZLE);
+uiMakeWordList(PUZZLE);
+
+$(window)
+  .on('resize', uiResize).trigger('resize');
+$(ID_LIST_CONTAINER).hammer()
+  .on('touch drag', uiWordListScroll);
+$(ID_PUZZLE).hammer()
+  .on('touch',uiTouchPuzzle)
+  .on('drag', uiDragPuzzle)
+  .on('release', uiReleasePuzzle);
+
+function uiDrawFoundWords(puzzle){
+    var $resultCanvas = $(ID_CANVAS_RESULTS);
+    var ctx = $resultCanvas[0].getContext('2d');
+    ctx.clearRect(0, 0, $resultCanvas[0].width, $resultCanvas[0].height);
+    var colors = ['red', 'orange', 'yellow', 'lime', 'green', 'aqua', 'blue', 'purple'];
+    var finds = puzzle.finds;
+    var i, find, l = finds.length;
+    var delta;
+    for (i = 0; i < l; i += 1) {
+        find = finds[i];
+        delta = wspDeltaFromDir(find.dir);
+        drawCircleIndex(ctx, find.x, find.y, find.x + (find.word.length - 1) * delta.x, find.y + (find.word.length - 1) * delta.y, LETTER_WIDTH, colors[i % colors.length]);
+        //drawCircle(ctx,find.x,find.y,find.x+find.word.length*delta.x,find.y+find.word.length*delta.y,LETTER_WIDTH,colors[i%colors.length]);
+    }
+}
+
+function uiCrossOutWords(puzzle){
+	var words = $(ID_LIST_CONTAINER).find('.'+CLASS_WORD);
+	var finds = puzzle.finds;
+	var f, find, fl = finds.length;
+	var w, word, wl = words.length, $word;
+	for( w=0; w<wl; w+=1 ){
+		$(words[w]).removeClass(CLASS_FOUND);
+	}
+	for( f=0; f<fl; f+=1 ){
+		find = finds[f];
+		for( w=0; w<wl; w+=1 ){
+			word = words[w];
+			if( word.innerHTML === find.word ){
+				$word = $(word);
+				if( ! $word.hasClass(CLASS_FOUND) ){
+					$word.addClass( CLASS_FOUND );
+					break;
+				}
+			}
+		}
+	}
+}
+
+function drawCircleIndex(ctx, xs, ys, xe, ye, w, c) {
+    var xStart = xs * LETTER_WIDTH + LETTER_WIDTH * LETTER_OFFSET_PERCENT_X;
+    var yStart = ys * LETTER_HEIGHT + LETTER_HEIGHT * LETTER_OFFSET_PERCENT_Y;
+    var xEnd = xe * LETTER_WIDTH + LETTER_WIDTH * LETTER_OFFSET_PERCENT_X;
+    var yEnd = ye * LETTER_HEIGHT + LETTER_HEIGHT * LETTER_OFFSET_PERCENT_Y;
+    drawCircle(ctx, xStart, yStart, xEnd, yEnd, w, c);
+}
+
+function drawCircle(ctx, xs, ys, xe, ye, w, c) {
+
+    // compute the 'angle' the line is going
+    var dx = xe - xs;
+    var dy = ye - ys;
+    var lineDir = Math.atan2(dy, dx);
+
+    // add 90 to get a perpendicular line
+    var perpStart = lineDir + Math.PI / 2;
+    var perpEnd = perpStart + Math.PI;
+
+    // the 'radius' will be some fraction of the parameter w
+    var r = w / 3;
+
+    // setup canvas parameters
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = c;
+
+    // Draw the racetrack-like shape
+    ctx.beginPath();
+    ctx.moveTo(xs + r * Math.cos(perpStart), ys + r * Math.sin(perpStart));
+    ctx.lineTo(xe + r * Math.cos(perpStart), ye + r * Math.sin(perpStart));
+    ctx.moveTo(xs + r * Math.cos(perpEnd), ys + r * Math.sin(perpEnd));
+    ctx.lineTo(xe + r * Math.cos(perpEnd), ye + r * Math.sin(perpEnd));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(xs, ys, r, perpStart, perpEnd, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(xe, ye, r, perpStart, perpEnd, 1);
+    ctx.stroke();
+
+    return;
+}
 
 </script>
 
