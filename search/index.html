@@ -76,6 +76,7 @@
 	<script type="text/javascript" src="../resources/lib/hammer.min.js"></script>
 	<script type="text/javascript" src="../resources/lib/elementFromPoint.js"></script>
 	<script type="text/javascript" src="../resources/lib/random.js"></script>
+	<script type="text/javascript" src="../resources/lib/misc.js"></script>
 
 </head>
 <body >
@@ -626,7 +627,6 @@ function wspCreatePuzzle(arrayOfWords, width, height, allowedDirections, maxWord
     }
 
     // Add random letters to the blank spots in the puzzle
-    /*
     var letters = arrayOfWords.join('');
     var c, l = letters.length;
     for (i = 0; i < height; i += 1) {
@@ -638,7 +638,6 @@ function wspCreatePuzzle(arrayOfWords, width, height, allowedDirections, maxWord
             // = {x:j, y:i, set:0, letter: '-'};
         }
     }
-    */
 
     // Return the puzzle object.
     return PUZZLE;
@@ -745,24 +744,11 @@ function wspCheckFoundWord(puzzle, xStart, yStart, xEnd, yEnd) {
 
 }
 
-var FEEDBACK_UIFAIL = 'Do a barrell roll!,Try again.,Keep practicing.,Y U NO WORK?,Keep trying.,Try this:'.split(',');
-var FEEDBACK_REPEAT = 'Are you kidding me?,Really?,Seriously?,Uh...,Yeah...,Nice effort but'.split(',');
-var FEEDBACK_FAIL = 'Well,Fail!,Oh Snap!,Fiddlesticks!,U mad bro,NO.'.split(',');
-var FEEDBACK_FOUND1 = 'Good Work,Nice,Sweet,Good,Great,Excellent'.split(',');
-var FEEDBACK_FINISHED = 'Awesome,Good Job,Excellent,Brilliant,Aww Yea,Mission Accomplished'.split(',');
-
-PUZZLE = wspCreatePuzzle("hello are are are how are you doing today".split(' '), 8, 8, 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128, 10);
-uiMakePuzzle(PUZZLE);
-uiMakeWordList(PUZZLE);
-
-$(window)
-  .on('resize', uiResize).trigger('resize');
-$(ID_LIST_CONTAINER).hammer()
-  .on('touch drag', uiWordListScroll);
-$(ID_PUZZLE).hammer()
-  .on('touch',uiTouchPuzzle)
-  .on('drag', uiDragPuzzle)
-  .on('release', uiReleasePuzzle);
+var FEEDBACK_UIFAIL = 'Dream on!,Do a barrell roll!,Try again.,Keep practicing.,Y U NO WORK?,Keep trying.,Try this:'.split(',');
+var FEEDBACK_REPEAT = 'Not today!,Jumping Jellybeans!,Sheesh,Are you kidding me?,Seriously?,Oy Vey.,Nice effort but'.split(',');
+var FEEDBACK_FAIL = 'By George!,For the love of Pete!,Humbug!,Fail!,Oh Snap!,Fiddlesticks!,U mad bro,NO.'.split(',');
+var FEEDBACK_FOUND1 = 'Cool,Fantastic,Good Work,Nice,Sweet,Good,Great,Excellent'.split(',');
+var FEEDBACK_FINISHED = 'Darn Tootin,Woot,Awesome,Spectacular,Excellent,Brilliant,Aww Yea,Mission Accomplished'.split(',');
 
 function uiDrawFoundWords(puzzle){
     var $resultCanvas = $(ID_CANVAS_RESULTS);
@@ -847,6 +833,136 @@ function wspDrawCircle(ctx, xs, ys, xe, ye, w, c) {
 
     return;
 }
+
+// This starts the game once the word list is loaded
+function onWordListLoad(data) {
+  WORD_LIST = RANDOM.shuffle( data.replace(/["<>(){}\[\]#@&]/g, '').replace(/,/g, ' ').replace(/%20/g, ' ').replace(/\+/g, ' ').split(/ +/g) );
+  // PUZZLE = wspCreatePuzzle("hello are are are how are you doing today".split(' '), 8, 8, 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128, 10);
+  PUZZLE = wspCreatePuzzle(WORD_LIST, WIDTH, HEIGHT, DIRECTIONS, MAX);
+  uiMakePuzzle(PUZZLE);
+  uiMakeWordList(PUZZLE);
+
+  $(window)
+    .on('resize', uiResize).trigger('resize');
+  $(ID_LIST_CONTAINER).hammer()
+    .on('touch drag', uiWordListScroll);
+  $(ID_PUZZLE).hammer()
+    .on('touch',uiTouchPuzzle)
+    .on('drag', uiDragPuzzle)
+    .on('release', uiReleasePuzzle);
+
+}
+
+var gUrlParms = GetUrlParms();
+// URL PARAMETERS:
+// WORDS: a comma seperated list of words
+// WIDTH: the width of the puzzle in number of characters
+// HEIGHT: the height of the puzzle in number of characters
+// MAX: the maximum number of words to show
+// SEED: an integer that will seed the random number generation
+// MODE: the method that the game should be run in
+//      game - does not show answers when a word from the list is clicked
+//      help - shows the answer when a word from the list is clicked
+// DIRS: a comma speerated list of allowed word directions
+//   By default all directions are allowed, for 'regular' left to right
+//   reading just enable 'E' east, 'W' west is 'backwards', 
+//   ALL, N, S, E, W, NE, NW, SE, SW
+// LIST: a special word list to load
+
+var WORD_LIST = null;
+var WIDTH = 8;
+var HEIGHT = 8;
+var MAX = WIDTH*HEIGHT;
+var SEED = RANDOM.getSeed();
+var MODE = 'question';
+var DIRECTIONS = 128|1|2|4|8|16|32|64;
+
+// Try to load URL parameters.
+if(gUrlParms != null){
+	if(gUrlParms.words){
+		// WORD_LIST = gUrlParms["words"].split(',');
+	}
+	if( gUrlParms.width ){
+		WIDTH = parseInt(gUrlParms.width);
+	}
+	if(gUrlParms.height ){
+		HEIGHT = parseInt(gUrlParms.height);
+	}
+	if( gUrlParms.max ){
+		MAX = parseInt(gUrlParms.max);
+	}else{
+		MAX = WIDTH*HEIGHT;
+	}
+	if(gUrlParms.seed){
+		SEED = parseInt(gUrlParms.seed);
+		RANDOM.setSeed(SEED);
+	}
+	if(gUrlParms.mode){
+		var mode = gUrlParms.mode.toLowerCase();
+		if(mode == 'questions' || mode == 'question' || mode == 'game' ||
+				mode == 'search' || mode == 'find' || mode == 'puzzle'){
+			MODE = 'find';
+		}
+		if(mode == 'answer' || mode == 'answers' || mode == 'solution' ||
+				mode == 'solutions' || mode == 'found' ||
+				mode == 'done' || mode == 'help' || mode == 'hint'){
+			MODE = 'help';
+		}
+	}
+	if(gUrlParms.dirs){
+		var caps = gUrlParms.dirs.toUpperCase();
+		if(caps.indexOf('ALL') > -1){
+			var dirNum = 128|1|2|4|8|16|32|64;
+		}else{
+			var dirs = caps.split('+');
+			var nDirs = dirs.length;
+			var dirNum = 0;
+			for(var i=0; i<nDirs; i+=1){
+				var iDir = dirs[i];
+				if(iDir == 'E'){ dirNum |= 128; }
+				else if(iDir == 'NE' || iDir == 'EN'){ dirNum |= 1; }
+				else if(iDir == 'N'){ dirNum |= 2; }
+				else if(iDir == 'NW' || iDir == 'WN'){ dirNum |= 4; }
+				else if(iDir == 'W'){ dirNum |= 8; }
+				else if(iDir == 'SW' || iDir == 'WS'){ dirNum |= 16; }
+				else if(iDir == 'S'){ dirNum |= 32; }
+				else if(iDir == 'SE' || iDir == 'ES'){ dirNum |= 64; }
+			}
+		}
+		DIRECTIONS = dirNum;
+	}
+}
+
+    // If we're not supplied with a word list.
+    if (gUrlParms && gUrlParms.words) {
+      // Manually start with the words provided
+      onWordListLoad(gUrlParms.words);
+    } else {
+      var list = 'english';
+      if (gUrlParms && gUrlParms["list"]) {
+        if (gUrlParms["list"] === "crossword") {
+          list = "crossword";
+        }
+        if (gUrlParms["list"] === "names_male") {
+          list = "names_male";
+        }
+        if (gUrlParms["list"] === "names_female") {
+          list = "names_female";
+        }
+        if (gUrlParms["list"] === "misspell") {
+          list = "misspell";
+        }
+        if (gUrlParms["list"] === "places") {
+          list = "places";
+        }
+        if (gUrlParms["list"] === "constitution") {
+          list = "constitution";
+        }
+      }
+
+      // Load the list of words via get request (AJAX)
+      $.get('../resources/word-lists/' + list, onWordListLoad);
+    }
 
 </script>
 
