@@ -998,8 +998,8 @@
     $(ID_NOTIFY).hammer()
       .on('tap drag', uiHideNotification)
       .on('hold', uiKeepNotification);
-    $(ID_BUTTON_EXIT).on('click', uiExit);
-    $(ID_BUTTON_HIDE).on('click', uiHideMarks);
+    $(ID_BUTTON_EXIT).hammer().on('tap', uiExit);
+    $(ID_BUTTON_HIDE).hammer().on('tap', uiHideMarks);
   }
   
   var gUrlParms = GetUrlParms();
