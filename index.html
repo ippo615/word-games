@@ -359,7 +359,7 @@ function makeOutput(){
 	if( list ){ options.push('list='+list); }
 	if( seed ){ options.push('seed='+seed); }
 	if( words ){ options.push('words='+words); }
-	output += '<a href="' +appendToUrl('anagram/?');
+	output += '<a href="' +appendToUrl('anagram/index.html?');
 	output += options.join('&');
 	output += '">Anagrams</a>\n';
 
@@ -377,7 +377,7 @@ function makeOutput(){
 	if( seed ){ options.push('seed='+seed); }
 	if( dirs ){ options.push('dirs='+dirs); }
 	if( words ){ options.push('words='+words); }
-	output += '<a href="' +appendToUrl('search/?');
+	output += '<a href="' +appendToUrl('search/index.html?');
 	output += options.join('&');
 	output += '">Word Search</a>\n';
 
@@ -409,10 +409,10 @@ $('#word-list').on('click','li',function(ev){
 
 // Quick link to the default anagram game and word search puzzle
 $('#quick-word-search-puzzle').on('click',function(ev){
-	window.location.href = appendToUrl('search');
+	window.location.href = appendToUrl('search/index.html');
 });
 $('#quick-anagram').on('click',function(ev){
-	window.location.href = appendToUrl('anagram');
+	window.location.href = appendToUrl('anagram/index.html');
 });
 
 
