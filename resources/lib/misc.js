@@ -1,3 +1,4 @@
+// ------------------------------------------- [ Function: Get Url Parms  ] -
 // Parses the URL for parameters and returns an array of key-value pairs
 function GetUrlParms() {
   // URL parameters begin after the '?' in the URL.
@@ -31,3 +32,103 @@ function GetUrlParms() {
   }
   return variables;
 }
+
+// ------------------------------------ [ Module: jQuery.elementFromPoint ] -
+// Enable jQuery to get elements by a point within them
+(function ($) {
+  var doCheck = true;
+  var isRelative = true;
+
+  $.elementFromPoint = function (x, y) {
+    if (!document.elementFromPoint) {
+      return null;
+    }
+
+    var $doc = $(document);
+    var $window = $(window);
+    if ( doCheck ) {
+      var scrollTop = $doc.scrollTop();
+      var scrollLeft = $doc.scrollLeft();
+      if (scrollTop > 0) {
+        isRelative = (document.elementFromPoint(0, scrollTop + $window.height() - 1) === null);
+        doCheck = false;
+      } else if (scrollLeft > 0) {
+        isRelative = (document.elementFromPoint(scrollLeft + $window.width() - 1, 0) === null);
+        doCheck = false;
+      }
+    }
+
+    if (!isRelative) {
+      x += $doc.scrollLeft();
+      y += $doc.scrollTop();
+    }
+
+    return document.elementFromPoint(x, y);
+  }
+
+})(jQuery);
+
+// -------------------------------------------- [ Module: Random Numbers  ] -
+var RANDOM = (function () {
+  var Seed = Math.floor(Math.random() * 4294967296);
+  var Current = Seed;
+
+  function setSeed(aSeed) {
+    Seed = aSeed;
+    Current = aSeed;
+  }
+
+  function getSeed() {
+    return Seed;
+  }
+
+  function getCurrent() {
+    return Current;
+  }
+
+  function betweenInt(aMin, aMax) {
+    Current = (Current * 1664525 + 1013904223) % 4294967296;
+    return aMin + Math.floor((Current / 4294967296) * aMax);
+  }
+
+  function betweenFloat(aMin, aMax) {
+    Current = (Current * 1664525 + 1013904223) % 4294967296;
+    return aMin + (Current / 4294967296) * aMax;
+  }
+
+  function random() {
+    Current = ((Current * 1664525 + 1013904223) % 4294967296);
+    return Current / 4294967296;
+  }
+
+  // Randomly orders the elements of arr (returns the new arrangement)
+  function shuffle(arr) {
+    var l = arr.length,
+      i = Math.ceil(l / 2) + 1,
+      r1, r2, swap;
+    while (i--) {
+      r1 = Math.floor(l * RANDOM.random());
+      r2 = Math.floor(l * RANDOM.random());
+      swap = arr[r1];
+      arr[r1] = arr[r2];
+      arr[r2] = swap;
+    }
+    return arr;
+  }
+
+  // Returns a random element from arr
+  function from(arr){
+    return arr[betweenInt(0,arr.length)];
+  }
+
+  return {
+    setSeed: setSeed,
+    getSeed: getSeed,
+    getCurrent: getCurrent,
+    betweenInt: betweenInt,
+    betweenFloat: betweenFloat,
+    random: random,
+    shuffle: shuffle,
+    from: from
+  };
+})();
