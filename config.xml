@@ -14,6 +14,8 @@
         Andrew Ippoliti
     </author>
 
+    <preference name="phonegap-version" value="2.0.0" />
+
     <!-- No permissions! -->
     <preference name="permissions" value="none"/>
 
