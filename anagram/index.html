@@ -579,24 +579,27 @@ var RANDOM = (function () {
       // Manually start with the words provided
       onWordListLoad(gUrlParms.words);
     } else {
-      var list = 'english';
+      var list = 'quick';
       if (gUrlParms && gUrlParms["list"]) {
-        if (gUrlParms["list"] === "crossword") {
+        if (gUrlParms.list === "english") {
+          list = "english";
+        }
+        if (gUrlParms.list === "crossword") {
           list = "crossword";
         }
-        if (gUrlParms["list"] === "names_male") {
+        if (gUrlParms.list === "names_male") {
           list = "names_male";
         }
-        if (gUrlParms["list"] === "names_female") {
+        if (gUrlParms.list === "names_female") {
           list = "names_female";
         }
-        if (gUrlParms["list"] === "misspell") {
+        if (gUrlParms.list === "misspell") {
           list = "misspell";
         }
-        if (gUrlParms["list"] === "places") {
+        if (gUrlParms.list === "places") {
           list = "places";
         }
-        if (gUrlParms["list"] === "constitution") {
+        if (gUrlParms.list === "constitution") {
           list = "constitution";
         }
       }
@@ -766,19 +769,27 @@ var RANDOM = (function () {
     // corresponding letter (as if the user clicked it)
     var letter = String.fromCharCode(ev.which).toUpperCase();
     var $letters = $(ID_ANAGRAM_AREA).find('.' + BANK_CLASS_NAME);
-    $letters.each(function (i, obj) {
-      if (obj.innerHTML === letter) {
-        activateLetter(obj);
-        return false; // break the loop
+    var i, l = $letters.length;
+    for( i=0; i<l; i+=1 ){
+      // Also allow spaces to be treated as an underscore (' ' = '_')
+      if( $letters[i] && ($letters[i].innerHTML === letter || ($letters[i].innerHTML==='_' && letter===' ')) ){
+        activateLetter($letters[i]);
+        break;
       }
-    });
+    }
   }
 
   function uiKeyboardSpecial(ev) {
+
     // If backspace is pressed
     // Remove the last letter typed
-    if (ev.which === 8 && LETTER_INDEX > 0 && GUESS_LETTERS.length > 0) {
-      deactivateLetter(GUESS_LETTERS[LETTER_INDEX - 1]);
+    if (ev.which === 8) {
+      if (LETTER_INDEX > 0 && GUESS_LETTERS.length > 0){
+        deactivateLetter(GUESS_LETTERS[LETTER_INDEX - 1]);
+      }
+      ev.preventDefault();
+      ev.stopPropagation();
+      return false;
     }
 
     // If delete or escape is pressed 
