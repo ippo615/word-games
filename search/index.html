@@ -235,6 +235,11 @@
   // When the user wants to exit - go back
   function uiExit() {
     history.go(-1);
+    // phonegap screws with the usual history so we need the following
+    // to get custom 'back' buttons working...
+    if( navigator && navigator.app && navigator.app.backHistory ){
+        navigator.app.backHistory();
+    }
   }  
 
   // Resizes the UI

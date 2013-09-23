@@ -755,6 +755,11 @@
     $(ID_BUTTON_EXIT).on('click', function () {
       if (isGuessComplete(GUESS_LETTERS)) {
         history.go(-1);
+        // phonegap screws with the usual history so we need the following
+        // to get custom 'back' buttons working...
+        if( navigator && navigator.app && navigator.app.backHistory ){
+            navigator.app.backHistory();
+        }
       }
     });
 
