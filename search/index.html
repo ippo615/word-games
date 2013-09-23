@@ -9,7 +9,8 @@
 	<!-- Mobile viewport optimization http://goo.gl/b9SaQ -->
 	<meta name="HandheldFriendly" content="True">
 	<meta name="MobileOptimized" content="320">
-	<meta name="viewport" content="width=320, height=320, user-scalable=no" />
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0" />
+	<!--<meta name="viewport" content="width=320, height=320, user-scalable=no" />-->
 	
 	<!-- Hide browser chrome (iOS only) -->
 	<meta name="apple-mobile-web-app-capable" content="yes" />	
@@ -244,6 +245,7 @@
 
   // Resizes the UI
   function uiResize() {
+    alert('resize');
     var $window = $(window);
     var windowSizeX = $window.width();
     var windowSizeY = $window.height();
