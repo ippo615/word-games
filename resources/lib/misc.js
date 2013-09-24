@@ -153,3 +153,127 @@ var RANDOM = (function () {
     from: from
   };
 })();
+
+// ---------------------------------------------- [ Module: Data Storage  ] -
+var DATA = (function ($self) {
+
+    // Saves `value` to `key`, ex: save('tries',77);
+    $self.save = function (key, value) {
+        // Cookie Writing
+        // document.cookie='KEY=VALUE; expires=DATE; path=/'
+        var expire = (new Date("2099/12/31")).toUTCString();
+        document.cookie = key + '=' + value + '; expires=' + expire + '; path=/';
+        //console.info( key+'='+value+'; expires='+expire+'; path=/' ); // DEBUG
+
+        // Local storage
+        try {
+            localStorage.setItem(key, value);
+        } catch (e) {}
+    };
+
+    // `any` - any type - returns original string
+    $self.any = function (value) {
+        return value;
+    };
+
+    // `int10` - base 10 integer (ie 123)
+    $self.int10 = function (value) {
+        return parseInt(value, 10);
+    };
+
+    // `float` - floating precision number (ie 1.2e3)
+    $self.float = function (value) {
+        return parseFloat(value);
+    };
+
+    // Returns the value stored in `key` if key is not set it returns
+    // the `valueDefault`
+    $self.load = function (key, valueDefault) {
+        return $self.loadValid(key, valueDefault, $self.any);
+    };
+
+    // Returns the value stored in `key` after it has been passed to
+    // the `validate` function. Returns `valueDefault` if `key` hasn't
+    // been set.
+    // ex: var score = DATA.loadValid('score',2,DATA.int10);
+    // ex: var name = DATA.loadValid('userName','John',DATA.any);
+    $self.loadValid = function (key, valueDefault, validate) {
+        // Cookie Reading
+        // 'key1=value1; key2=value2' === document.cookie
+        var allCookies = decodeURIComponent(document.cookie),
+            searchKey = key + '=',
+            keyIndex = allCookies.indexOf(searchKey),
+            semicolonPosition = allCookies.indexOf(';', keyIndex),
+            valueCookie = '',
+            valueLocalStorage = '';
+        if (keyIndex > -1) {
+            if (semicolonPosition > 0) {
+                valueCookie = allCookies.slice(keyIndex + searchKey.length, semicolonPosition);
+            } else {
+                valueCookie = allCookies.slice(keyIndex + searchKey.length);
+            }
+        }
+
+        // Local Storage
+        try {
+            valueLocalStorage = localStorage.getItem(key);
+        } catch (e) {}
+
+        // Prefer local storage then cookie then default
+        //console.info('Loading Key: '+ key ); // DEBUG
+        if (valueLocalStorage !== null && valueLocalStorage !== '') {
+            //console.info('Local Raw: '+ valueLocalStorage ); // DEBUG
+            //console.info('Local Valid: '+ validate(valueLocalStorage) ); // DEBUG
+            return validate(valueLocalStorage);
+        }
+        if (valueCookie !== '') {
+            //console.info('Cookie Raw: '+ valueCookie ); // DEBUG
+            //console.info('Cookie Valid: '+ validate(valueCookie) ); // DEBUG
+            return validate(valueCookie);
+        }
+        //console.info('Default Raw: '+ validate(valueDefault) ); // DEBUG
+        //console.info('Default Valid: '+ validate(valueDefault) ); // DEBUG
+        return validate(valueDefault);
+    };
+
+    // Clears all of the key/value stores
+    $self.clearAll = function () {
+        document.cookie = "";
+        try {
+            localStorage.clear();
+        } catch (e) {}
+    };
+
+    // Returns a string of all of the key value pairs
+    // ex: DATA.dumpAll() === 'name:Andrew;score:55;'
+    $self.dumpAll = function () {
+        var output = '';
+        output += 'Cookie:\n';
+        output += document.cookie.split('; ').join(';\n') + '\n';
+        try {
+            var i = localStorage.length;
+            output += 'Local Storage:\n';
+            while (i--) {
+                output += localStorage.key(i);
+                output += ':';
+                output += localStorage.getItem(localStorage.key(i));
+                output += ';\n';
+            }
+        } catch (e) {}
+
+        return output;
+    };
+
+    // Prompts the user to download it a file containing the saved data
+    $self.download = function () {
+        var savedData = 'Saved Data\n';
+        savedData += 'From: ' + window.location.href + '\n';
+        savedData += 'Date: ' + (new Date()).toUTCString() + '\n';
+        savedData += $self.dumpAll();
+        var uri = 'data:application/octet-stream,' + encodeURIComponent(savedData);
+        //window.location.href = uri;
+        window.open(uri);
+    };
+
+    return $self;
+}({}));

@@ -71,7 +71,7 @@
 			-khtml-opacity: 0.3;
 		}
 
-		#notification {
+		#notification, #dialog-new-puzzle {
 			position: absolute;
 			padding: 1em;
 			text-align: center;
@@ -90,8 +90,10 @@
 		#word-list { display: inline-block; margin: 0; padding: 0; list-style-type: none; }
 		.word { list-style-type: none; float: left; }
 
-		#btn-exit {font-size: 130%; margin: 0.5em; border: 4px solid #000; border-radius: 1em; }
-		#btn-hide {font-size: 130%; margin: 0.5em; border: 4px solid #000; border-radius: 1em;}
+		.btn {font-size: 130%; margin: 0.5em; border: 4px solid #000; border-radius: 1em;}
+
+		#btn-exit { }
+		#btn-hide {}
 
 	</style>
 
@@ -135,6 +137,11 @@
 		<div class='letter' id='letter_6_7'>A</div>
 	</div>
 	<div id='notification'></div>
+	<div id='dialog-new-puzzle'>
+		<div class='dialog-new-puzzle-text'></div>
+		<div class='btn' id='btn-new-puzzle'>New Puzzle</div>
+		<div class='btn' id='btn-no-puzzle'>No Thanks</div>
+	</div>
 	<div id='word-list-container'><div id='word-list'>
 		<div class='word'>word123</div>
 		<div class='word'>word123</div>
@@ -171,8 +178,8 @@
 		<div class='word'>word123</div>
 		<div class='word'>word123</div>
 		</div>
-	<div id='btn-exit'>Exit</div>
-	<div id='btn-hide'>Hide</div></div>
+	<div class='btn' id='btn-exit'>Exit</div>
+	<div class='btn' id='btn-hide'>Hide</div></div>
 	
 <script type="text/javascript">
 // ----------------------------------------------- [ Module: Game ] -
@@ -194,7 +201,8 @@
   // Various colors used to draw the circles around the words
   var COLORS = ['red', 'orange', 'yellow', 'lime', 'green', 'aqua', 'blue', 'purple'];
   // 0 = invisible circles, 1 = opaque circles
-  var CIRLCE_ALPHA = 0.6;
+  var CIRCLE_ALPHA = 0.3;
+  var CIRCLE_FILL = 1;
   
   // Interjections to randomly add to the user feedback
   var FEEDBACK_UIFAIL = 'Dream on!,Do a barrell roll!,Try again.,Keep practicing.,Y U NO WORK?,Keep trying.,Try this:'.split(',');
@@ -220,6 +228,7 @@
   var ID_LIST_CONTAINER = '#word-list-container';
   var ID_BUTTON_EXIT = '#btn-exit';
   var ID_BUTTON_HIDE = '#btn-hide';
+  var ID_DIALOG_NEW_PUZZLE = '#dialog-new-puzzle';
 
   // Global variables to be computed/set later
   var N_LETTERS_X = 8;
@@ -630,21 +639,41 @@
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = c;
-    ctx.globalAlpha = CIRLCE_ALPHA;
+    ctx.fillStyle = c;
+    ctx.globalAlpha = CIRCLE_ALPHA;
 
-    // Draw the racetrack-like shape
+    // Draw the middle rectangle
     ctx.beginPath();
-    ctx.moveTo(xs + r * Math.cos(perpStart), ys + r * Math.sin(perpStart));
-    ctx.lineTo(xe + r * Math.cos(perpStart), ye + r * Math.sin(perpStart));
-    ctx.moveTo(xs + r * Math.cos(perpEnd), ys + r * Math.sin(perpEnd));
-    ctx.lineTo(xe + r * Math.cos(perpEnd), ye + r * Math.sin(perpEnd));
-    ctx.stroke();
+    if( CIRCLE_FILL ){
+      ctx.moveTo(xs + r * Math.cos(perpStart), ys + r * Math.sin(perpStart));
+      ctx.lineTo(xe + r * Math.cos(perpStart), ye + r * Math.sin(perpStart));
+      ctx.lineTo(xe + r * Math.cos(perpEnd), ye + r * Math.sin(perpEnd));
+      ctx.lineTo(xs + r * Math.cos(perpEnd), ys + r * Math.sin(perpEnd));
+      ctx.closePath();
+      ctx.fill();
+    }else{
+      ctx.moveTo(xs + r * Math.cos(perpStart), ys + r * Math.sin(perpStart));
+      ctx.lineTo(xe + r * Math.cos(perpStart), ye + r * Math.sin(perpStart));
+      ctx.moveTo(xs + r * Math.cos(perpEnd), ys + r * Math.sin(perpEnd));
+      ctx.lineTo(xe + r * Math.cos(perpEnd), ye + r * Math.sin(perpEnd));
+      ctx.stroke();
+    }
+
     ctx.beginPath();
     ctx.arc(xs, ys, r, perpStart, perpEnd, 0);
-    ctx.stroke();
+    if( CIRCLE_FILL ){
+      ctx.fill();
+    }else{
+      ctx.stroke();
+    }
+
     ctx.beginPath();
     ctx.arc(xe, ye, r, perpStart, perpEnd, 1);
-    ctx.stroke();
+    if( CIRCLE_FILL ){
+      ctx.fill();
+    }else{
+      ctx.stroke();
+    }
 
     return;
   }
