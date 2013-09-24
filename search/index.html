@@ -136,12 +136,6 @@
 		<div class='letter' id='letter_7_6'>A</div>
 		<div class='letter' id='letter_6_7'>A</div>
 	</div>
-	<div id='notification'></div>
-	<div id='dialog-new-puzzle'>
-		<div class='dialog-new-puzzle-text'></div>
-		<div class='btn' id='btn-new-puzzle'>New Puzzle</div>
-		<div class='btn' id='btn-no-puzzle'>No Thanks</div>
-	</div>
 	<div id='word-list-container'><div id='word-list'>
 		<div class='word'>word123</div>
 		<div class='word'>word123</div>
@@ -179,11 +173,24 @@
 		<div class='word'>word123</div>
 		</div>
 	<div class='btn' id='btn-exit'>Exit</div>
-	<div class='btn' id='btn-hide'>Hide</div></div>
+	<div class='btn' id='btn-hide'>Hide</div><br/>
+	<div class='btn' id='btn-new'>New</div></div>
+
+	<div id='notification'></div>
+	<div id='dialog-new-puzzle'>
+		<div class='dialog-new-puzzle-text'>Would you like to play a new puzzle?</div>
+		<div class='btn' id='btn-new-puzzle'>New Puzzle</div>
+		<div class='btn' id='btn-no-puzzle'>No Thanks</div>
+	</div>
 	
 <script type="text/javascript">
 // ----------------------------------------------- [ Module: Game ] -
 (function () {
+
+  // Persistant Data 
+  var TOTAL_NUMBER_OF_WORDS_FOUND = DATA.loadValid('total-words-found',0,DATA.int10);
+  var TOTAL_NUMBER_OF_PUZZLES = DATA.loadValid('total-puzzles-solved',0,DATA.int10);
+  var IS_PUZZLE_COUNTED = 0;
 
   // Size of notification area vs puzzle area
   var NOTIFY_WIDTH_RATIO = 0.75;
@@ -203,6 +210,46 @@
   // 0 = invisible circles, 1 = opaque circles
   var CIRCLE_ALPHA = 0.3;
   var CIRCLE_FILL = 1;
+
+  // To keep track of how the user is doing
+  // They can turn off feedback by tapping on the notification area
+  // BUT it will be turned back on if they make several ui mistakes in a row
+  var UI_IS_FEEDBACK_ENABLED = 0;
+  var UI_ERROR_COUNT = 0;
+  var UI_ERROR_THRESHOLD = 2;
+
+  // Function keeps track of user mistakes/behavior and offers
+  // helps when appropriate
+  function isUserConfused(amount){
+    // if the user is making errors - add to the count first
+    // this will allow: errors -> do this -> good job!
+    // if we always added at the same spot:
+    // error -> do this -> NOTHING!
+    if( amount > 0 ){
+      UI_ERROR_COUNT += amount;
+    }
+
+    // Limit minimum/maximum error count
+    if( UI_ERROR_COUNT < 0 ){
+      UI_ERROR_COUNT = 0;
+    }
+    if( UI_ERROR_COUNT > UI_ERROR_THRESHOLD * 2 ){
+      UI_ERROR_COUNT = UI_ERROR_THRESHOLD * 2;
+    }
+
+    // Turn the feedback on or off, depending on how the user is doing
+    if( UI_ERROR_COUNT > UI_ERROR_THRESHOLD ){
+      UI_IS_FEEDBACK_ENABLED = 1;
+    }else{
+      UI_IS_FEEDBACK_ENABLED = 0;
+    }
+
+    if( amount < 0 ){
+      UI_ERROR_COUNT += amount;
+    }
+
+    return UI_IS_FEEDBACK_ENABLED;
+  }
   
   // Interjections to randomly add to the user feedback
   var FEEDBACK_UIFAIL = 'Dream on!,Do a barrell roll!,Try again.,Keep practicing.,Y U NO WORK?,Keep trying.,Try this:'.split(',');
@@ -229,6 +276,21 @@
   var ID_BUTTON_EXIT = '#btn-exit';
   var ID_BUTTON_HIDE = '#btn-hide';
   var ID_DIALOG_NEW_PUZZLE = '#dialog-new-puzzle';
+  var ID_BUTTON_NEW_PUZZLE = '#btn-new-puzzle';
+  var ID_BUTTON_NO_PUZZLE = '#btn-no-puzzle';
+  var ID_BUTTON_NEW = '#btn-new';
+
+  function uiShowNewPuzzleDialog(force){
+    if( wspIsAllFound(PUZZLE) || force===1 ){
+      $(ID_DIALOG_NEW_PUZZLE).fadeIn();
+    }
+  }
+
+  function uiStopNotifications(){
+    UI_IS_FEEDBACK_ENABLED = 0;
+    uiHideNotification();
+  }
+
 
   // Global variables to be computed/set later
   var N_LETTERS_X = 8;
@@ -351,6 +413,16 @@
       height: puzzleHeight * NOTIFY_HEIGHT_RATIO + 'px',
       top: puzzleTop + puzzleHeight * 0.5 - puzzleHeight * NOTIFY_HEIGHT_RATIO * 0.5 + 'px',
       left: puzzleLeft + puzzleWidth * 0.5 - puzzleWidth * NOTIFY_WIDTH_RATIO * 0.5 + 'px',
+      fontSize: puzzleWidth * NOTIFY_FONT_SIZE_RATIO + 'px'
+    });
+
+    var newPuzzleDialogW = windowSizeX * NOTIFY_WIDTH_RATIO;
+    var newPuzzleDialogH = windowSizeY * NOTIFY_HEIGHT_RATIO;
+    $(ID_DIALOG_NEW_PUZZLE).css({
+      width: newPuzzleDialogW + 'px',
+      height: newPuzzleDialogH + 'px',
+      top: 0 + windowSizeY * 0.5 - newPuzzleDialogH * 0.5 + 'px',
+      left: 0 + windowSizeX * 0.5 - newPuzzleDialogW * 0.5 + 'px',
       fontSize: puzzleWidth * NOTIFY_FONT_SIZE_RATIO + 'px'
     });
 
@@ -527,6 +599,12 @@
   function uiReleasePuzzle(ev) {
     ev.gesture.preventDefault();
     END_LETTER = $.elementFromPoint(ev.gesture.center.pageX, ev.gesture.center.pageY);
+
+    // If the user has dragged outsize the area we'll get
+    // a null END_LETTER - so exit
+    if (!END_LETTER) {
+      return;
+    }
 
     // Find the starting location
     var idStart = START_LETTER.id;
@@ -959,7 +1037,9 @@
 
     // if we haven't moved
     if (dx === 0 && dy === 0) {
-      uiNotify(RANDOM.from(FEEDBACK_UIFAIL) + " Press. Drag. Release.");
+      if( isUserConfused(1) ) {
+        uiNotify(RANDOM.from(FEEDBACK_UIFAIL) + " Press. Drag. Release.");
+      }
       return 0;
     }
 
@@ -967,7 +1047,9 @@
     if (dx !== 0 && dy !== 0) {
       // ensure the slope is 45*
       if (Math.abs(dx) !== Math.abs(dy)) {
-        uiNotify(RANDOM.from(FEEDBACK_UIFAIL) + " Diagonal lines must be 45&deg;.");
+        if( isUserConfused(1) ){
+          uiNotify(RANDOM.from(FEEDBACK_UIFAIL) + " Diagonal lines must be 45&deg;.");
+        }
         return 0;
       }
     }
@@ -1008,15 +1090,35 @@
       });
       if (wspIsAllFound(puzzle)) {
         uiNotify(RANDOM.from(FEEDBACK_FINISHED) + '! You found everything.');
+        setTimeout(function(){
+          uiShowNewPuzzleDialog();
+        },400+NOTIFICATION_DURATION+400);
+
+        // Keep track of how many puzzles the user has solved
+        if( ! IS_PUZZLE_COUNTED ){
+          TOTAL_NUMBER_OF_PUZZLES += 1;
+          DATA.save('total-puzzles-solved',TOTAL_NUMBER_OF_PUZZLES);
+          IS_PUZZLE_COUNTED = 1;
+        }
+
       } else {
         if (wasFound) {
-          uiNotify(RANDOM.from(FEEDBACK_REPEAT) + ' You found "' + word + '"... Again.');
+          if( isUserConfused(1) ){
+            uiNotify(RANDOM.from(FEEDBACK_REPEAT) + ' You found "' + word + '"... Again.');
+          }
         } else {
-          uiNotify(RANDOM.from(FEEDBACK_FOUND1) + '. You found "' + word + '"');
+          if( isUserConfused(-1) ){
+            uiNotify(RANDOM.from(FEEDBACK_FOUND1) + '. You found "' + word + '"');
+          }
+          // Keep track of how many words the user has found
+          TOTAL_NUMBER_OF_WORDS_FOUND += 1;
+          DATA.save('total-words-found',TOTAL_NUMBER_OF_WORDS_FOUND);
         }
       }
     } else {
-      uiNotify(RANDOM.from(FEEDBACK_FAIL) + ' "' + word + '" is not on the word list.');
+      if( isUserConfused(1) ){
+        uiNotify(RANDOM.from(FEEDBACK_FAIL) + ' "' + word + '" is not on the word list.');
+      }
     }
 
     // Update the UI
@@ -1026,17 +1128,39 @@
   }
 
   // ----------------------------------------------- [ Section: Url Options ] -
-  
-  // This starts the game once the word list is loaded
-  function onWordListLoad(data) {
-    WORD_LIST = RANDOM.shuffle(data.replace(/["<>(){}\[\]#@&]/g, '').replace(/,/g, ' ').replace(/%20/g, ' ').replace(/\+/g, ' ').split(/ +/g));
+
+  function uiNewPuzzle(){
+    IS_PUZZLE_COUNTED = 0;
     // PUZZLE = wspCreatePuzzle("hello are are are how are you doing today".split(' '), 8, 8, 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128, 10);
+    RANDOM.shuffle(WORD_LIST);
     PUZZLE = wspCreatePuzzle(WORD_LIST, WIDTH, HEIGHT, DIRECTIONS, MAX);
     uiMakePuzzle(PUZZLE);
     uiMakeWordList(PUZZLE);
+    uiResize();
+  }  
 
-    $(window)
-      .on('resize', uiResize).trigger('resize');
+  // If the user causes a vertical scroll - notifications and
+  // dialog boxes become fully transparent but block other actions
+  // Preventing scrolling by registering this on the
+  // touchmove event seems to prevent the bug
+  function uiIPhoneBugFix(ev){
+    ev.preventDefault();
+  }
+
+  // This starts the game once the word list is loaded
+  function onWordListLoad(data) {
+    // Clean and store the word list
+    WORD_LIST = RANDOM.shuffle(data.replace(/["<>(){}\[\]#@&]/g, '').replace(/,/g, ' ').replace(/%20/g, ' ').replace(/\+/g, ' ').split(/ +/g));
+
+    // Make a new puzzle
+    uiNewPuzzle();
+
+    // Setup the ui events
+    $(window).hammer()
+      .on('swipe',uiShowNewPuzzleDialog)
+      .on('resize', uiResize)
+      .on('touchmove',uiIPhoneBugFix)
+      .trigger('resize');
     $(ID_LIST_CONTAINER).hammer()
       .on('touch drag', uiWordListScroll);
     $(ID_LIST).hammer()
@@ -1046,10 +1170,20 @@
       .on('drag', uiDragPuzzle)
       .on('release', uiReleasePuzzle);
     $(ID_NOTIFY).hammer()
-      .on('tap drag', uiHideNotification)
+      .on('tap drag', uiStopNotifications)
       .on('hold', uiKeepNotification);
     $(ID_BUTTON_EXIT).hammer().on('tap', uiExit);
     $(ID_BUTTON_HIDE).hammer().on('tap', uiHideMarks);
+    $(ID_BUTTON_NEW).hammer().on('tap',function(){
+      uiShowNewPuzzleDialog(1);
+    });
+    $(ID_BUTTON_NO_PUZZLE).hammer().on('tap',function(){
+      $(ID_DIALOG_NEW_PUZZLE).finish().fadeOut();
+    });
+    $(ID_BUTTON_NEW_PUZZLE).hammer().on('tap',function(){
+      $(ID_DIALOG_NEW_PUZZLE).finish().fadeOut();
+      uiNewPuzzle();
+    });
   }
   
   var gUrlParms = GetUrlParms();

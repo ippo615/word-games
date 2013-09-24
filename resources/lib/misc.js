@@ -125,7 +125,7 @@ var RANDOM = (function () {
   // Randomly orders the elements of arr (returns the new arrangement)
   function shuffle(arr) {
     var l = arr.length,
-      i = Math.ceil(l / 2) + 1,
+      i = l + 1,
       r1, r2, swap;
     while (i--) {
       r1 = Math.floor(l * RANDOM.random());
