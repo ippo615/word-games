@@ -68,6 +68,27 @@ function GetUrlParms() {
 
 })(jQuery);
 
+// ------------------------------------ [ Module: jQuery.changeStyleSheet ] -
+// Changes the innerHTML of a style sheet (fixes IE<9 errors)
+(function ($) {
+
+   $.fn.styleSheet = function(cssCode){
+     // note: this - is actually a jQuery object NOT a dom node
+     var ie;
+     try {
+       this.html(cssCode)
+     }catch(ie){
+       // Internet explorer < 9 does not let me set the innerHTML
+       // of a style tag, so I need to do the following instead
+       // (note: other browsers don't like this)
+       this[0].styleSheet.cssText = cssCode;
+     }
+
+     return this;
+   }
+  
+})(jQuery);
+
 // -------------------------------------------- [ Module: Random Numbers  ] -
 var RANDOM = (function () {
   var Seed = Math.floor(Math.random() * 4294967296);

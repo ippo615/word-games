@@ -6,6 +6,12 @@
 	<meta name="description" content="Anagram Game">
 	<meta name="author" content="Andrew Ippoliti">
 
+	<!-- The documentation said to put html5shiv AFTER the style tags... -->
+	<!--[if lt IE 9]>
+	    <script src="../resources/ie/html5shiv.js"></script>
+	    <script src="../resources/ie/excanvas.js"></script>
+	<![endif]-->
+
 	<!-- Mobile viewport optimization http://goo.gl/b9SaQ -->
 	<meta name="HandheldFriendly" content="True">
 	<meta name="MobileOptimized" content="320">
@@ -645,13 +651,14 @@
 
     var fontSize = Math.min(letterSizeX, letterSizeY);
 
-    $(ID_DYNAMIC_CSS).html(
-      '.' + LETTER_CLASS_NAME + ' { ' +
+    var newStyle = '.' + LETTER_CLASS_NAME + ' { ' +
       'width: ' + letterSizeX + 'px;' +
       'height: ' + letterSizeY + 'px;' +
       'font-size: ' + fontSize + 'px;' +
       'line-height: ' + letterSizeY + 'px;' +
-      '}');
+      '}';
+    $(ID_DYNAMIC_CSS).styleSheet(newStyle);
+      
 
     // Position all of the letters:
     while (BANK_POSITIONS.length) {
