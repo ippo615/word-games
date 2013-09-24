@@ -730,7 +730,15 @@
       }
     }
   }
-  
+
+  // If the user touches a letter(s) and moves enough
+  // vertically to scroll - everything stops responding
+  // preventing scrolling by registering this on the
+  // touchmove event seems to prevent the bug
+  function uiIPhoneBugFix(ev){
+    ev.preventDefault();
+  }
+
   // Binds all of the ui events to the correct dom elements
   function setupUi() {
 
@@ -738,7 +746,8 @@
     $(window)
       .on('resize', uiResize)
       .on('keypress', uiKeyboardLetter)
-      .on('keydown', uiKeyboardSpecial);
+      .on('keydown', uiKeyboardSpecial)
+      .on('touchmove', uiIPhoneBugFix);
 
     // Mouse/touch events are registered on the containing area
     // The handler uses the touch coordinates to de/activate the letter
@@ -749,10 +758,10 @@
       .on('doubletap tap drag hold', uiHandleDeactivate);
 
     // Start a new word when the user clicks new
-    $(ID_BUTTON_NEW).on('click', startNewWord);
+    $(ID_BUTTON_NEW).hammer().on('tap', startNewWord);
 
     // Instead of 'exitting' go back
-    $(ID_BUTTON_EXIT).on('click', function () {
+    $(ID_BUTTON_EXIT).hammer().on('tap', function () {
       if (isGuessComplete(GUESS_LETTERS)) {
         history.go(-1);
         // phonegap screws with the usual history so we need the following
@@ -764,7 +773,7 @@
     });
 
     // Increase the hint level if the user asks for more hints
-    $(ID_BUTTON_HINT).on('click', function () {
+    $(ID_BUTTON_HINT).hammer().on('tap', function () {
       if (isGuessComplete()) {
         HINT_LEVEL += 1;
         checkGuess(0);
@@ -774,7 +783,7 @@
     // When the 'message' (good job/try again) is clicked
     // if the user got it right -> go to a new word
     // if the user got it wrong -> reset the letters
-    $(ID_MESSAGE_TEXT).on('click', function () {
+    $(ID_MESSAGE_TEXT).hammer().on('tap', function () {
       if (isGuessComplete()) {
         if (isGuessCorrect()) {
           startNewWord();
@@ -783,6 +792,7 @@
         }
       }
     });
+
   }
 
   // --------------------------------------------------------------- [ Main ] -

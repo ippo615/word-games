@@ -399,27 +399,27 @@ $('#text-new-word').on('keydown',function(ev){
 });
 
 // Add the words and update the output when the 'add' button is clicked
-$('#btn-add-new-word').on('click',function(ev){
+$('#btn-add-new-word').hammer().on('tap',function(ev){
 	addWords.call($('#text-new-word')[0]);
 	makeOutput();
 });
 
 // Remove words when they are clicked
-$('#word-list').on('click','li',function(ev){
+$('#word-list').hammer().on('tap','li',function(ev){
 	$(this).fadeOut(function(){$(this).remove();});
 });
 
 // Quick link to the default anagram game and word search puzzle
-$('#quick-word-search-puzzle').on('click',function(ev){
+$('#quick-word-search-puzzle').hammer().on('tap',function(ev){
 	window.location.href = appendToUrl('search/index.html');
 });
-$('#quick-anagram').on('click',function(ev){
+$('#quick-anagram').hammer().on('tap',function(ev){
 	window.location.href = appendToUrl('anagram/index.html');
 });
 
 
 // Shows/hides the help text
-$('#btn-help').on('click',function(ev){
+$('#btn-help').hammer().on('tap',function(ev){
 	// All help text is stored div's with class='tip' (are hidden by default)
 	var $css = $('#dynamic-css');
 	if( $css.html() === '' ){
@@ -437,7 +437,7 @@ $('#btn-help').on('click',function(ev){
 $('input,select').on('change blur',makeOutput);
 
 // Update the output on the button click
-$('#btn-make-code').on('click',makeOutput);
+$('#btn-make-code').hammer().on('tap',makeOutput);
 </script>
 
 </body>
