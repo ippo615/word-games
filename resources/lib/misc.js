@@ -73,10 +73,10 @@ function GetUrlParms() {
 (function ($) {
 
    $.fn.styleSheet = function(cssCode){
-     // note: this - is actually a jQuery object NOT a dom node
+     // note: `this` is actually a jQuery object NOT a dom node
      var ie;
      try {
-       this.html(cssCode)
+       this.html(cssCode);
      }catch(ie){
        // Internet explorer < 9 does not let me set the innerHTML
        // of a style tag, so I need to do the following instead

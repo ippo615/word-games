@@ -190,6 +190,7 @@
   // Persistant Data 
   var TOTAL_NUMBER_OF_WORDS_FOUND = DATA.loadValid('total-words-found',0,DATA.int10);
   var TOTAL_NUMBER_OF_PUZZLES = DATA.loadValid('total-puzzles-solved',0,DATA.int10);
+  var TOTAL_NUMBER_OF_HINTS = DATA.loadValid('total-hints',0,DATA.int10);
   var IS_PUZZLE_COUNTED = 0;
 
   // Size of notification area vs puzzle area
@@ -257,6 +258,13 @@
   var FEEDBACK_FAIL = 'By George!,For the love of Pete!,Humbug!,Fail!,Oh Snap!,Fiddlesticks!,U mad bro,NO.,Not today!,Jumping Jellybeans!,Sheesh,Are you kidding me?,Seriously?,Oy Vey.,Nice effort but'.split(',');
   var FEEDBACK_FOUND1 = 'Cool,Fantastic,Good Work,Nice,Sweet,Good,Great,Excellent'.split(',');
   var FEEDBACK_FINISHED = 'Darn Tootin,Woot,Awesome,Spectacular,Brilliant,Aww Yea,Mission Accomplished'.split(',');
+  // Feedback for specific senarios
+  var FEEDBACK_NO_MOVE = ' Press. Drag. Release.';
+  var FEEDBACK_DIAGONAL = ' Diagonal lines must be 45&deg;.';
+  var FEEDBACK_PUZZLE_FINISHED = '! You found everything.';
+  var FEEDBACK_WORD_FOUND = ' You found: ';
+  var FEEDBACK_AGAIN = ' ... Again.';
+  var FEEDBACK_NOT_ON_LIST = ' is not on the word list.';
   
   // Css hooks
   var ID_NOTIFY = '#notification';
@@ -290,7 +298,6 @@
     UI_IS_FEEDBACK_ENABLED = 0;
     uiHideNotification();
   }
-
 
   // Global variables to be computed/set later
   var N_LETTERS_X = 8;
@@ -681,6 +688,8 @@
     var id = this.id;
     var index = id.replace(ID_WORD_PREFIX, '');
     wspShowAnswer(PUZZLE, parseInt(index, 10));
+    TOTAL_NUMBER_OF_HINTS += 1;
+    DATA.save('total-hints',TOTAL_NUMBER_OF_HINTS);
   }
   
   // Draws a circle on `ctx` starting at `xs,ys` and ending at `xe,ye`
@@ -1038,7 +1047,7 @@
     // if we haven't moved
     if (dx === 0 && dy === 0) {
       if( isUserConfused(1) ) {
-        uiNotify(RANDOM.from(FEEDBACK_UIFAIL) + " Press. Drag. Release.");
+        uiNotify(RANDOM.from(FEEDBACK_UIFAIL) + FEEDBACK_NO_MOVE);
       }
       return 0;
     }
@@ -1048,7 +1057,7 @@
       // ensure the slope is 45*
       if (Math.abs(dx) !== Math.abs(dy)) {
         if( isUserConfused(1) ){
-          uiNotify(RANDOM.from(FEEDBACK_UIFAIL) + " Diagonal lines must be 45&deg;.");
+          uiNotify(RANDOM.from(FEEDBACK_UIFAIL) + FEEDBACK_DIAGONAL);
         }
         return 0;
       }
@@ -1089,7 +1098,7 @@
         dir: dir
       });
       if (wspIsAllFound(puzzle)) {
-        uiNotify(RANDOM.from(FEEDBACK_FINISHED) + '! You found everything.');
+        uiNotify(RANDOM.from(FEEDBACK_FINISHED) + FEEDBACK_PUZZLE_FINISHED);
         setTimeout(function(){
           uiShowNewPuzzleDialog();
         },400+NOTIFICATION_DURATION+400);
@@ -1104,11 +1113,11 @@
       } else {
         if (wasFound) {
           if( isUserConfused(1) ){
-            uiNotify(RANDOM.from(FEEDBACK_REPEAT) + ' You found "' + word + '"... Again.');
+            uiNotify(RANDOM.from(FEEDBACK_REPEAT) + ' ' + FEEDBACK_WORD_FOUND +'"'+ word +'"'+ FEEDBACK_AGAIN);
           }
         } else {
           if( isUserConfused(-1) ){
-            uiNotify(RANDOM.from(FEEDBACK_FOUND1) + '. You found "' + word + '"');
+            uiNotify(RANDOM.from(FEEDBACK_FOUND1) + FEEDBACK_WORD_FOUND + word );
           }
           // Keep track of how many words the user has found
           TOTAL_NUMBER_OF_WORDS_FOUND += 1;
@@ -1117,7 +1126,7 @@
       }
     } else {
       if( isUserConfused(1) ){
-        uiNotify(RANDOM.from(FEEDBACK_FAIL) + ' "' + word + '" is not on the word list.');
+        uiNotify(RANDOM.from(FEEDBACK_FAIL) +' "'+ word +'"' + FEEDBACK_NOT_ON_LIST);
       }
     }
 
@@ -1150,7 +1159,7 @@
   // This starts the game once the word list is loaded
   function onWordListLoad(data) {
     // Clean and store the word list
-    WORD_LIST = RANDOM.shuffle(data.replace(/["<>(){}\[\]#@&]/g, '').replace(/,/g, ' ').replace(/%20/g, ' ').replace(/\+/g, ' ').split(/ +/g));
+    WORD_LIST = data.replace(/["<>(){}\[\]#@&]/g, '').replace(/,/g, ' ').replace(/%20/g, ' ').replace(/\+/g, ' ').split(/ +/g);
 
     // Make a new puzzle
     uiNewPuzzle();
