@@ -44,11 +44,11 @@
 			user-select: none;
 		}
 
-		* {
+		/* Don't let the user select anything */
+		*, html, body, .letter {
 			-webkit-user-select: none; 
 			-webkit-touch-callout: none;
 			-webkit-tap-highlight-color: rgba(255, 255, 255, 0);
-			/* I don't think transparent works */
 			-webkit-tap-highlight-color: transparent;
 			-webkit-touch-callout: none;
 			-webkit-user-select: none;
@@ -56,6 +56,7 @@
 			-moz-user-select: none;
 			-ms-user-select: none;
 			user-select: none;
+			cursor: default;
 		}
 
 		.letter {
@@ -451,7 +452,8 @@
   }
 
   function loadOptions() {
-    var gUrlParms = GetUrlParms();
+    var urlParmStr = DATA.load('url-parms',getUrlParmString());
+    var gUrlParms = parseUrlParmString(urlParmStr);
     // URL PARAMETERS:
     // ORDER: determines the sequence in which the words are displayed
     // forward  - show the words in the order they appear in the list

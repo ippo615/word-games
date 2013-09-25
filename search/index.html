@@ -1195,7 +1195,8 @@
     });
   }
   
-  var gUrlParms = GetUrlParms();
+  var urlParmStr = DATA.load('url-parms',getUrlParmString());
+  var gUrlParms = parseUrlParmString(urlParmStr);
   // URL PARAMETERS:
   // WORDS: a comma seperated list of words
   // WIDTH: the width of the puzzle in number of characters

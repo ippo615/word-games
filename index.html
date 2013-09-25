@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<title>Word Game Configurator</title>
-	<meta name="description" content="Anagram Game">
+	<meta name="description" content="Word Game Configurator">
 	<meta name="author" content="Andrew Ippoliti">
 
 	<!-- The documentation said to put html5shiv AFTER the style tags... -->
@@ -444,6 +444,14 @@ $('input,select').on('change blur',makeOutput);
 
 // Update the output on the button click
 $('#btn-make-code').hammer().on('tap',makeOutput);
+
+// SOMETHING IMPORTANT TO NOTE:
+// http://code.google.com/p/android/issues/detail?id=17535
+// Basically, in Android 3/4 +phonegap using url parameters does not work, ex:
+// http://page.com/index.html -> ok
+// http://page.com/index.html?parm=something -> fail
+// So - save your parametes to a cookie/localstorage and then read/load it
+
 </script>
 
 </body>

@@ -1,12 +1,17 @@
+/* Copyright (c) 2013 Andrew Ippoliti http://github.com/ippo615
+ * Licensed under the Apache 2 license */
+
 // ------------------------------------------- [ Function: Get Url Parms  ] -
-// Parses the URL for parameters and returns an array of key-value pairs
-function GetUrlParms() {
+// Returns the parameters (stuff after the ?) in a url
+// ex: http://www.example.com/index.html?this=is_resturned&so=is_this
+// returns 'this=is_resturned&so=is_this'
+function getUrlParmString() {
   // URL parameters begin after the '?' in the URL.
   var startLocation = window.location.href.indexOf('?');
 
   // We may not have any URL parameters.
-  if (startLocation == -1) {
-    return null;
+  if (startLocation === -1) {
+    return '';
   }
 
   // We do not care about the location part of the URL.
@@ -14,6 +19,15 @@ function GetUrlParms() {
 
   // Some browsers put a '/' at the end of some urls
   parmString = parmString.replace(/\/$/, '');
+
+  return parmString;
+}
+// Parses the URL for parameters and returns an array of key-value pairs
+function parseUrlParmString(parmString){
+
+  if( parmString === '' ){
+    return null;
+  }
 
   // Each key/value pair is separated by an '&'.
   var varStrings = parmString.split('&');

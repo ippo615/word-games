@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Get a list of all of the varible names (only those that are indented with 2 spaces)
+variables=$(grep -oE '^  var .+=' index.html | sed -e 's/var//g' -e 's/=//g' -e 's/ //g')
+
+# Make a list of where each variable is used:
+for each in $variables; do
+	echo "$each"
+	grep -vn '^  var' index.html | grep -a3 -b3 "$each" 
+	# silently wait for 1 keypress before continuing
+	read -n 1 -s
+done;
